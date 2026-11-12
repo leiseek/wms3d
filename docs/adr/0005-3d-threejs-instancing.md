@@ -1,5 +1,5 @@
 # ADR-0005 · 3D：three.js + React Three Fiber，数据驱动 + InstancedMesh
-- 状态：已接受（v1）
+- 状态：已接受 · **v2 2026-11-12**（按 R1 M14/M15/M16/M23/M24 修订）
 
 ## 选项
 - **three.js/R3F（选）**：生态最大，PC/移动 WebView 复用，InstancedMesh 一次 draw call 渲染数万仓位，`instanceColor` 着色、raycast 返回 instanceId。
@@ -8,7 +8,7 @@
 - Unity/UE 嵌入：包体与授权成本高，不符合 MVP。
 
 ## 决策
-场景完全由布局数据生成（无手工建模）；货架框架按模板合并几何并实例化；全部仓位一个（或透明/不透明两个）InstancedMesh；按需渲染；draw calls ≤ 60 预算；颜色局部更新。参见 06 文档与 sources [T1][T2][T3]。
+场景完全由布局数据生成；**按巷道分块**，每块：框架近景合并几何、远景实心盒、有货/空仓位两个 InstancedMesh（每仓位一个槽位，以缩放 0 切换归属）；按块距离 LOD（滞回）+ 视锥裁剪；解析式拾取（射线→货架 OBB→网格），不用 BVH；文字用 troika SDF；按需渲染；预算分档：5k 仓位 ≤ 60 draw calls / ≤ 150k 三角形，20k 仓位 ≤ 300k（依赖远景 LOD）。参见 06 与 sources [T1][T2][T3][T4]。
 
 ## 后果
-+ 2 万仓位仍可在中端机流畅；− 单个 InstancedMesh 无逐实例视锥裁剪（可接受，按货架分块是后续优化选项）。
++ 经分块 LOD 后 2 万仓位可在中端机达到 ≥ 24 FPS（需 M4 真机基准确认）；5k 仓位 ≥ 30 FPS。− 分块增加少量 draw calls 与实现复杂度；空/有货切换需维护两套槽位。

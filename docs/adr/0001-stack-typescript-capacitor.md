@@ -1,5 +1,5 @@
 # ADR-0001 · 客户端技术栈：TypeScript 单仓 + Capacitor（不选 Flutter / React Native / 原生 Kotlin）
-- 状态：已接受（v1）· 日期：2026-11-11
+- 状态：已接受 · v1 2026-11-11 · v2 2026-11-12（补充：WebView 版本门槛、CORS 与证书路径，结论不变）
 
 ## 背景
 需要 PC Web 后台 + Android 平板/手机；3D 孪生需在 PC 与移动端都有；蓝牙 SPP/HID 与相机扫码需要原生能力；团队为小团队 + AI Agent，需在本机（Linux，无 GUI 模拟器）可构建可测试。
@@ -20,4 +20,5 @@ TypeScript 全栈单仓；移动端为 Capacitor 8 包装的 React 应用，原�
 ## 后果
 + 一份 3D 代码、一份契约类型、Web 端可全量自动化测试；2026-11-11 本机 spike：Capacitor 8 空工程 `assembleDebug` 成功生成 4MB APK。
 − WebView 3D 性能需严格预算（见 06）；原生插件需 Kotlin 能力（范围小，可控）。
+− 移动端与 API 跨域（`https://localhost` origin）需 CORS allowlist；内网自签证书需走 04 §1 的两条路径之一；无 GMS 国产机的 WebView 版本参差，用 `minWebViewVersion` 门槛 + WebGL2 检测 + 2D 降级应对。
 − 若未来需 iOS，Capacitor 同样支持（SPP 在 iOS 不可用，仅 HID/相机）。

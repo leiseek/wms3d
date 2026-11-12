@@ -1,5 +1,5 @@
 # ADR-0002 · 后端：Fastify 5 + Zod 契约 + Drizzle ORM + PostgreSQL 17
-- 状态：已接受（v1）
+- 状态：已接受 · v2 2026-11-12（锁定版本：fastify 5.12、fastify-type-provider-zod 7.0、@fastify/swagger 9.9、zod 4.6、drizzle-orm 0.45 / drizzle-kit 0.31；drizzle 1.0 仍为 RC，不追）
 
 ## 选项
 - **NestJS + Prisma**：结构化强，但装饰器/DI 样板多；Prisma 2026-11 npm `latest` 为 8.0 RC（稳定线 7.x 即将过渡），且库存引擎需要大量手写 SQL（`ON CONFLICT ... RETURNING`、条件 UPDATE、`FOR UPDATE`、触发器），Prisma 在这些场景依赖 raw SQL。

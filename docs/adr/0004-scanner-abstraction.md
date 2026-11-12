@@ -1,15 +1,13 @@
-# ADR-0004 · 扫码抽象：HID（原生拦截优先 + JS 兜底）/ SPP（自研插件）/ 相机（ML Kit 捆绑）
-- 状态：已接受（v1）
-
-## 背景
-用户要求平板连接"SFP 蓝牙"扫码枪——业内为 **SPP（Serial Port Profile）**；绝大多数蓝牙枪同时支持 HID 键盘模式（配对即用）。
+# ADR-0004 · 扫码抽象：HID（pre-IME 原生拦截 + JS 兜底）/ SPP（自研插件）/ 相机（ML Kit 捆绑 + 瞄准框）（v2）
+- 状态：已接受 · **v2 2026-11-12**（按 R1 M2/M4/M8/M9/M10/M11/M12 修订）
 
 ## 决策
-1. 统一 `ScanHub` 事件流，页面不感知来源。
-2. HID：Capacitor 插件在 `Activity.dispatchKeyEvent` 识别外接键盘设备并缓冲/吞键（避免输入法与输入框干扰）；JS `keydown` 时间间隔判定作为 Web/PC 兜底。
-3. SPP：自研 Kotlin 插件（RFCOMM UUID 00001101-…，仅连已配对设备，帧切分可配置，自动重连）。社区插件（如 `@e-is/capacitor-bluetooth-serial` 仅支持到 Capacitor 6、`@nossdev/bluetooth-classic` 功能偏通用）与 Capacitor 8 匹配度/维护度不确定，且我们需要"扫码语义"（帧、编码、重连）——自研约 500 行，可控。
-4. 相机：`@capacitor-mlkit/barcode-scanning@8` 的 `startScan`（捆绑 ML Kit 模型，无需 GMS）；不使用依赖 Play 服务的 Google code scanner（国内设备常无 GMS）。
+1. 统一 `ScanHub`；去重按来源配置：枪源不做时间去重（仅 < 80ms 同帧），相机"离框再触发"；同 SKU 累加仅枪源默认开启。
+2. **HID**：拦截点为 `dispatchKeyEventPreIme()`（自定义 FrameLayout 包住 WebView，位于 App 的 MainActivity），先于输入法；`Activity.dispatchKeyEvent` 为第二道防线。只拦截白名单设备（descriptor + VID/PID，首次测试扫码时记录）的 `KEYBOARD_TYPE_ALPHABETIC` 可打印键/Enter/Tab；`getUnicodeChar(metaState)`；终止符为主、150ms 空闲兜底。JS 兜底阈值：平均 < 30ms 且最大 < 120ms。
+3. **SPP**：自研 Kotlin（社区插件与 Capacitor 8 匹配度不确定，且需要扫码语义）；权限 CONNECT + SCAN(neverForLocation) + 旧版 BLUETOOTH/ADMIN(maxSdk 30)；回退顺序 secure → insecure → （开关控制的）反射 channel 1；前台重连上限 3s + ACL 广播 + onResume 重连；帧切分空帧丢弃、半帧缓冲、512B 上限。
+4. **相机**：`@capacitor-mlkit/barcode-scanning` `startScan()`（捆绑模型，无 GMS 依赖）；不用 `scan()`/`barcode_ui`；`cornerPoints` 瞄准框过滤 + 2 帧确认 + 格式限定；上半屏透明挖洞布局；torch 用 `@capawesome/capacitor-torch`。
+5. 反馈走原生 SoundPool + haptics，成功音只在业务校验通过后播放。
 
 ## 后果
-+ 三种来源可插拔、可模拟（web mock）；e2e 可覆盖业务流程。
-− HID 原生拦截需在真机验证不同 ROM 的按键事件行为（风险 R1）。
++ 中文输入法场景可用；密集标签误读显著降低；三种来源可在 web mock 中模拟。
+− pre-IME 行为与 SPP 休眠需真机验证（R1/R10）；Hook 写在 App 工程而非插件内。
