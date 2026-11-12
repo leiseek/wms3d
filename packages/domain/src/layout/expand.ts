@@ -6,9 +6,14 @@ import {
   cellWorld,
   deriveSide,
   pickFaceLine,
+  round6,
   rackFootprint,
   type Vec3,
 } from '../core/geometry.ts';
+import { overlappingPairs, polygonContains, type Quad } from './geom2d.ts';
+
+export * from './geom2d.ts';
+export * from './arrange.ts';
 
 export interface ExpandedRack {
   key: string;
@@ -130,6 +135,12 @@ export function assignPickSeq(locs: ExpandedLocation[], racks: ExpandedRack[]): 
   });
 }
 
+/**
+ * RACK_OUTSIDE_ZONE 的严重级别。暂为 WARNING：Lead 的 golden.test.ts 属性用例使用三角形库区（货架落在其外），
+ * 升级为 ERROR 需先修正该夹具，见 docs/contract-requests/ws-d1-1.md。
+ */
+export const RACK_OUTSIDE_ZONE_SEVERITY: LayoutIssue['severity'] = 'WARNING';
+
 export interface ValidateOptions {
   pattern: string;
   /** 标签模板容量折算的最大编码长度（M30）；不传则不校验 */
@@ -138,8 +149,9 @@ export interface ValidateOptions {
 }
 
 /**
- * 布局校验（02 §3.1、§9 step 2）。M0b 参考实现覆盖：未知库区/模板、bay 奇偶、bay 区间重叠、编码重复/超长、
- * 巷道取货面共线与宽度、越界。**OBB 重叠（RACK_OVERLAP）与 RACK_OUTSIDE_ZONE 由 WS-D1 在 M2D 补齐。**
+ * 布局校验（02 §3.1、§9 step 2；前后端共享同一函数）：未知库区/模板、越界、**OBB 重叠（分离轴，相切不报）**、
+ * **货架越出所属库区（多边形包含，贴边不报）**、bay 奇偶、bay 区间重叠、bay/巷道位数超出编码模式、
+ * 巷道取货面共线与宽度、编码重复/超长。问题顺序确定（便于前后端对比与快照测试）。
  */
 export function validateLayout(doc: LayoutDoc, opts: ValidateOptions): LayoutIssue[] {
   const issues: LayoutIssue[] = [];
@@ -201,6 +213,22 @@ export function validateLayout(doc: LayoutDoc, opts: ValidateOptions): LayoutIss
         break;
       }
   }
+  // OBB 重叠（M2D）：90° 步进下即 AABB 相交，统一走分离轴以兼容将来任意角度
+  const quads: Quad[] = valid.map((r) => rackFootprint(r, types.get(r.type)!) as Quad);
+  for (const [i, j] of overlappingPairs(quads))
+    add('ERROR', 'RACK_OVERLAP', `货架 ${valid[i]!.key} 与 ${valid[j]!.key} 重叠`, [
+      valid[i]!.key,
+      valid[j]!.key,
+    ]);
+  // 货架必须完整落在所属库区多边形内（M2D）
+  const zoneByCode = new Map(doc.zones.map((z) => [z.code, z]));
+  valid.forEach((r, i) => {
+    const zp = zoneByCode.get(r.zone)!.polygon;
+    if (!polygonContains(zp, quads[i]!))
+      add(RACK_OUTSIDE_ZONE_SEVERITY, 'RACK_OUTSIDE_ZONE', `货架 ${r.key} 超出所属库区 ${r.zone}`, [
+        r.key,
+      ]);
+  });
   for (const arr of groups.values()) {
     arr.sort((a, b) => a.lo - b.lo);
     for (let k = 1; k < arr.length; k++)
@@ -230,7 +258,9 @@ export function validateLayout(doc: LayoutDoc, opts: ValidateOptions): LayoutIss
       continue;
     }
     const lines = (side: 'L' | 'R') => [
-      ...new Set(rs.filter((r) => deriveSide(r.rotationDeg) === side).map((r) => pickFaceLine(r))),
+      ...new Set(
+        rs.filter((r) => deriveSide(r.rotationDeg) === side).map((r) => round6(pickFaceLine(r))),
+      ),
     ];
     const L = lines('L');
     const R = lines('R');
@@ -260,9 +290,40 @@ export function validateLayout(doc: LayoutDoc, opts: ValidateOptions): LayoutIss
         );
     }
   }
-  // 编码
+  // 编码：先逐货架检查最大编号是否能按模式格式化（bay/巷道位数、库区长度），不能的排除后再整体展开
+  let pat: ReturnType<typeof compilePattern> | null = null;
   try {
-    const { locations } = expandLayout({ ...doc, racks: valid }, opts.pattern);
+    pat = compilePattern(opts.pattern);
+  } catch (e) {
+    add('ERROR', 'OTHER', `编码模式无效：${(e as Error).message}`);
+  }
+  if (!pat) return issues;
+  const codable = valid.filter((r) => {
+    const t = types.get(r.type)!;
+    const side = deriveSide(r.rotationDeg);
+    const hiBay = r.bayStart + 2 * (t.bays - 1);
+    try {
+      pat.format({
+        zone: r.zone,
+        aisle: r.aisle,
+        bay: hiBay,
+        level: t.levels,
+        position: t.positionsPerLevel,
+        side,
+      });
+      return true;
+    } catch (e) {
+      add(
+        'ERROR',
+        'CODE_TOO_LONG',
+        `货架 ${r.key} 的编号超出编码模式 ${opts.pattern}（bay ${r.bayStart}–${hiBay}，巷道 ${r.aisle}）：${(e as Error).message}`,
+        [r.key],
+      );
+      return false;
+    }
+  });
+  try {
+    const { locations } = expandLayout({ ...doc, racks: codable }, opts.pattern);
     const seen = new Map<string, number>();
     for (const l of locations) seen.set(l.code, (seen.get(l.code) ?? 0) + 1);
     const dup = [...seen].filter(([, n]) => n > 1).map(([c]) => c);
