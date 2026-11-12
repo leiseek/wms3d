@@ -12,6 +12,7 @@ import {
 import { installRawBodyCapture, rawBodyOf } from './raw-body.ts';
 import { loadTxns } from './views.ts';
 import { ApiError } from '../../lib/problem.ts';
+import { installJobs } from '../../jobs/index.ts';
 
 /**
  * inventory 模块（tag 'inventory'，ws-a2）：库存引擎 + 查询。
@@ -21,6 +22,7 @@ export const inventoryModule: ApiModule = ({ app, routes: r, services }) => {
   const db = services.db;
   if (!db) return;
   const pool = db.pool;
+  installJobs(app, pool);
 
   services.scopeResolvers.txn = async (id) => {
     const x = await pool.query<{ warehouse_id: string }>(
