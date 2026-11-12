@@ -7,6 +7,7 @@ import {
   type TokenVerifier,
 } from './auth.ts';
 import { EventBus } from './events.ts';
+import { keyringFromEnv, type JwtKeyring } from './tokens.ts';
 
 /**
  * 跨模块共享服务。模块在注册时可替换其中的可插拔实现（例：auth 模块设置 verifyToken，
@@ -18,6 +19,10 @@ export interface AppServices {
   verifyToken: TokenVerifier;
   scopeResolvers: ScopeResolvers;
   deviceGuard: DeviceGuard;
+  /** 设备禁用状态缓存失效（patchDevice 调用；默认 no-op） */
+  invalidateDevice: (deviceId?: string) => void;
+  /** JWT 密钥环（WS-A1 签发/校验 access token） */
+  jwt: JwtKeyring;
   config: AppConfig;
 }
 
@@ -27,6 +32,8 @@ export interface AppConfig {
   jwtSecret: string | undefined;
   corsOrigins: string[];
   nodeEnv: string;
+  /** 额外环境（JWT_KID、JWT_PREVIOUS_KEYS、APP_* 版本信息等），缺省 process.env */
+  env?: NodeJS.ProcessEnv;
 }
 
 export function createServices(config: AppConfig, db: DbHandle | null): AppServices {
@@ -36,6 +43,11 @@ export function createServices(config: AppConfig, db: DbHandle | null): AppServi
     verifyToken: rejectAllVerifier,
     scopeResolvers: {},
     deviceGuard: allowAllDevices,
+    invalidateDevice: () => undefined,
+    jwt: keyringFromEnv(
+      { ...(config.env ?? {}), JWT_SECRET: config.jwtSecret ?? config.env?.JWT_SECRET },
+      config.nodeEnv,
+    ),
     config,
   };
 }
