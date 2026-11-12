@@ -73,3 +73,6 @@ pnpm check:ownership                        # 改动只能落在下方“独占�
 已合并到 main：ws-a2 M1（57d93db）。请 `git rebase main`。
 - ws-a2-1 的决定见请求文件末尾：#1 维持 501 shim；#2 由 A1 加 `AuthContext.exp`，A1 合并后删除 JWT 载荷解析分支；#3 `db:seed:stock` 已加，`pnpm db:reset:dev` 会自动写演示库存；#4、#5 mock 已对齐（FORBIDDEN、closeCount 余额不足、digest 同算法）；#6 backup 键名已转给 WS-F；#7 onListen 维持现状。
 - 联合验收 **#5** 在 main 上通过（6 轮交错，“入库先赢”和“发布先赢”两条路径都覆盖到，不存在停用仓位上有库存）：`apps/api/src/test/joint-5.test.ts`。
+
+## Lead 更新 · ws-d1 合并（2026-11-12 PT）
+- 跟进：`events.test.ts` 固定用端口 4831。main 上的 verify 跑到它时，和本 WS 同时运行的测试撞端口（EADDRINUSE），出现过一次假失败。请改为 `listen({ port: 0 })` 并读取实际端口。

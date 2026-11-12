@@ -39,3 +39,9 @@ twin3d 自带的 `src/troika.d.ts` 是环境声明，不会被 import 链带入�
 ## 3.（信息）mock 的 validateLayout 不计算 `recoded`
 mock 的 `diff.recoded` 恒为空、publish 不检查 `confirmRecode`。设计器的改码确认弹窗在 Playwright 中通过网络层注入 recoded 验证；
 真实 API（WS-A1）实现两轮匹配后无需改动前端。若 Lead 希望 mock 也覆盖，可按 02 §9 的第一轮 key 匹配给出 recoded。
+
+---
+**Lead 决定（2026-11-12 PT，main 在 contract-v1.2 之后；无契约变更，不另打 tag）**
+1. **接受，已做**：`golden.test.ts` 属性用例的库区改为矩形 `[[0,0],[500,0],[500,500],[0,500]]`，黄金数据不变。已在本地验证：把 `RACK_OUTSIDE_ZONE_SEVERITY` 临时改为 `'ERROR'` 后，domain + mock 测试 68/68 全绿。**WS-D1**：rebase 后把常量改为 `'ERROR'`，跑完整 `pnpm verify`（含 api 的布局发布用例）后提交。
+2. **接受，已做**（同 ws-c-1 #3）：`packages/twin3d/src/labels.ts` 顶部加 `/// <reference path="./troika.d.ts" />`，声明随 twin3d 源码一起带给消费方。已验证：去掉 TwinPreview 里的 reference 后，admin typecheck 仍通过。**WS-D1** 删除 `TwinPreview.tsx` 中的 reference；**WS-C** 删除 `apps/mobile/tsconfig.json` 中对 troika.d.ts 的 include。twin3d 归 WS-D2，这是 Lead 的一行集成修复，已告知 WS-D2。
+3. mock 的 `recoded`：**暂不做**，排到 M4.5。真实 API（WS-A1）已实现两轮匹配和改码确认；联调时以真实 API 为准。

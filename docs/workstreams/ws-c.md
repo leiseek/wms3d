@@ -62,3 +62,6 @@ pnpm check:ownership                        # 改动只能落在下方“独占�
 已合并到 main：ws-c M3（9ec9d84）。请 `git rebase main`。
 - ws-c-1：#1 插件改为 npm 包这件事排到 M4.5，由 Lead 统一做，**在此之前保留**本地 Gradle 模块；#2 `apps/mobile` 已有 `pnpm --filter @wms3d/mobile e2e`；#3 troika 声明转给 WS-D2。
 - 契约 v1.2 对移动端的影响：改密错误现在是 400 `VALIDATION_FAILED`（不再是 401，别触发刷新）；OPERATOR 冲正违规是 403 `FORBIDDEN`；digest 可以复算（算法见 `SyncDigest.hash` 描述），离线主数据校验可以用。
+
+## Lead 更新 · ws-d1 合并（2026-11-12 PT）
+twin3d 已随包导出 troika 声明（ws-d1-1 / ws-c-1 #3）：请删除 `apps/mobile/tsconfig.json` 中对 `packages/twin3d/src/troika.d.ts` 的 include。

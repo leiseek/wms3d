@@ -55,3 +55,6 @@ pnpm check:ownership                        # 改动只能落在下方“独占�
 ## Lead 更新 · contract-v1.2（2026-11-12 PT）
 - **新任务（来自 ws-a1-5，已接受）**：在 `validateLayout` 中以 `CODE_DUPLICATE`（ERROR，填充 rackKeys / codes）报告三类重复：① doc 内重复的 `racks[].key`；② 重复的 `zones[].code`；③ 展开后重复的货架编码（会撞 `racks unique(warehouse_id, code)`）。补单测；编辑器即时提示。合并后 WS-A1 会删除服务端的 `extraIssues` 补检。
 - 契约 v1.2 无布局相关变更；请 `git rebase main`。
+
+## Lead 更新 · ws-d1 合并（2026-11-12 PT）
+已合并到 main（a716595）。ws-d1-1 已处理：golden 夹具改为矩形 → 请把 `RACK_OUTSIDE_ZONE_SEVERITY` 改为 `'ERROR'`；twin3d 已导出 troika 声明 → 删除 `TwinPreview.tsx` 里的 reference。仍待做：ws-a1-5 的 `CODE_DUPLICATE` 三类检查（见上一节）。

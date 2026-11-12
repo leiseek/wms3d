@@ -1,3 +1,5 @@
+// eslint-disable-next-line @typescript-eslint/triple-slash-reference -- 环境声明随源码导出给消费方（ws-d1-1 / ws-c-1）
+/// <reference path="./troika.d.ts" />
 import * as THREE from 'three';
 import * as troika from 'troika-three-text';
 

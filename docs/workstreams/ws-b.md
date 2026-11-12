@@ -62,3 +62,7 @@ pnpm check:ownership                        # 改动只能落在下方“独占�
 - 改密：当前口令错误 / 新旧相同 → 400 `VALIDATION_FAILED`，按 `errors[].path` 标在对应字段上。
 - 标签打印页：`renderLabels` 的 `warehouseId` 必填；`format: 'ZPL'` 返回 `application/vnd.zebra.zpl`（A4 模板 400，UI 应禁用该组合）；kind 必须在模板 `kinds` 内（RACK 只用 rack-100x150）；响应头 `X-Label-Count` / `X-Reprints-Done`；模板 maxModules 已是真实值，可以直接做容量提示。
 - OPERATOR 冲正违规：403 `FORBIDDEN`。真实后端 A1/A2/E 已合并；`pnpm db:reset:dev` 会带演示库存。
+
+## Lead 更新 · ws-d1 合并（2026-11-12 PT）
+- **`LayoutDesignerPage` 已在 main**（ws-d1 a6153a4，合并提交 a716595）：`import { LayoutDesignerPage } from './features/layout-designer'`（`apps/admin/src/features/layout-designer/index.tsx`），props `{ api, warehouseId, canPublish?, canEdit?, height? }`。挂到路由 `/layout`，按 `me.role` 传 `canEdit` / `canPublish`（MANAGER/ADMIN 可发布），`api` 传你的 api-client 实例。
+- twin3d 的 troika 类型现在随包导出：挂 `TwinView` 时不需要在 admin 里加 reference 或 include。
