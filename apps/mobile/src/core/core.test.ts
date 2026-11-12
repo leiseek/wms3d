@@ -212,6 +212,15 @@ describe('作业状态机（04 §3.7 意外码表）', () => {
     expect(wf.setQty(st, 0).pending?.qty).toBe(1);
     expect(wf.cancelPending(st).phase).toBe('WAIT_SKU');
   });
+  it('相机来源：设置开启 cameraAccumulate 后同 SKU 累加', () => {
+    const o = { cameraAccumulate: true };
+    let st = wf.onScan(wf.initialState('PUTAWAY'), r.md.resolveLocal(L1), 'CAMERA', o).state;
+    st = wf.onScan(st, r.md.resolveLocal(S1), 'CAMERA', o).state;
+    const again = wf.onScan(st, r.md.resolveLocal(S1), 'CAMERA', o);
+    expect(again.effects[0]).toMatchObject({ type: 'ok' });
+    expect(again.state.pending?.qty).toBe(2);
+  });
+
   it('离线未知条码：等待SKU 时暂存原文；在线未知报错', () => {
     let st = wf.onScan(wf.initialState('PUTAWAY'), r.md.resolveLocal(L1), 'HID').state;
     const off = wf.onScan(st, { kind: 'UNKNOWN', raw: 'NEW-1', offline: true }, 'HID');
