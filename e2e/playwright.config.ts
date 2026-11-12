@@ -6,7 +6,7 @@
  * 也可直接 `bash scripts/e2e.sh [mock|real] [--ui]`。共享机器：workers=2（10 §6.4）。
  */
 import { defineConfig, devices } from '@playwright/test';
-import { ports, target, wantUi } from './lib/env.ts';
+import { STATE_DIR, ports, target, wantUi } from './lib/env.ts';
 
 const chrome = process.env.CHROME_PATH ?? '/opt/google/chrome/chrome';
 const apiPort = target === 'real' ? ports.real : ports.mock;
@@ -14,13 +14,13 @@ const viteEnv = { PORT_API: String(apiPort), WMS_WS: 'ws-f' };
 
 export default defineConfig({
   testDir: './tests',
-  outputDir: './.state/results',
+  outputDir: `${STATE_DIR}results`,
   globalSetup: './global-setup.ts',
   fullyParallel: false,
   workers: 2,
   retries: 0,
   timeout: 60_000,
-  reporter: [['list'], ['json', { outputFile: './.state/report.json' }]],
+  reporter: [['list'], ['json', { outputFile: `${STATE_DIR}report-${target}.json` }]],
   use: { trace: 'retain-on-failure', launchOptions: { executablePath: chrome } },
   projects: [
     { name: 'api', testDir: './tests/api' },

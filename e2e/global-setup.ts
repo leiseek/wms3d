@@ -1,4 +1,4 @@
-/** 起后端（mock | real）→ 一次性登录 5 个演示账号 → 写 e2e/.state/state.json；返回 teardown（停进程、删临时库）。 */
+/** 起后端（mock | real）→ 一次性登录 5 个演示账号 → 写 $E2E_STATE_DIR/state.json（缺省 /workspace/wms3d-artifacts/e2e/ws-f）；返回 teardown（停进程、删临时库）。 */
 import { mkdirSync, writeFileSync } from 'node:fs';
 import type { FullConfig } from '@playwright/test';
 import { startMock, startReal, type Backend } from './lib/backend.ts';

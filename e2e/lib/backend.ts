@@ -45,7 +45,7 @@ async function waitFor(url: string, proc: ChildProcess, timeoutMs: number): Prom
   let last = '';
   while (Date.now() < deadline) {
     if (proc.exitCode !== null)
-      throw new Error(`后端进程已退出（code ${proc.exitCode}），见 e2e/.state/*.log`);
+      throw new Error(`后端进程已退出（code ${proc.exitCode}），见 ${STATE_DIR}*.log`);
     try {
       const r = await fetch(url);
       if (r.ok) return;

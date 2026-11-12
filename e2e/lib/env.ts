@@ -12,7 +12,10 @@ export const ROOT = fileURLToPath(new URL('../../', import.meta.url));
  * （例如 `git merge-tree` + `git archive` 解出的 main+分支），e2e 用例本身仍取自本仓库。
  */
 export const APP_ROOT = (process.env.E2E_APP_ROOT ?? ROOT).replace(/\/?$/, '/');
-export const STATE_DIR = fileURLToPath(new URL('../.state/', import.meta.url));
+/** 运行状态/报告放在源码树之外（根 prettier/eslint 不读嵌套 .gitignore）。 */
+export const STATE_DIR = (
+  process.env.E2E_STATE_DIR ?? '/workspace/wms3d-artifacts/e2e/ws-f'
+).replace(/\/?$/, '/');
 export const STATE_FILE = `${STATE_DIR}state.json`;
 
 export const target: Target = process.env.E2E_TARGET === 'real' ? 'real' : 'mock';

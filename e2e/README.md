@@ -12,7 +12,7 @@ E2E_DB=wms_ws_f bash scripts/e2e.sh real           # 改用本 WS 开发库（�
 
 | 文件 | 内容 |
 |---|---|
-| `global-setup.ts` | 起后端、一次性登录 5 个演示账号（避开 5 次/分钟登录限流）、写 `.state/state.json`；teardown 停进程、删库 |
+| `global-setup.ts` | 起后端、一次性登录 5 个演示账号（避开 5 次/分钟登录限流）、写 `/workspace/wms3d-artifacts/e2e/ws-f/state.json`（`E2E_STATE_DIR` 可改）；teardown 停进程、删库 |
 | `tests/api/health.spec.ts` | health/ready/401/安全头 |
 | `tests/api/inbound.spec.ts` | **验收：登录 + 一笔入库**；同键重放、不同 body 同键 409、跨仓 404 |
 | `tests/api/demo-flow.spec.ts` | 演示脚本：建仓 → 设计（If-Match/412）→ 发布（MANAGER 403）→ 标签 PDF → SKU 导入 → 上架（离线+在线）→ 定位 → 出库（超量 422） |
