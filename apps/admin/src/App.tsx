@@ -24,8 +24,8 @@ const LabelsPage = lazy(() => import('./pages/LabelsPage'));
 const UsersPage = lazy(() => import('./pages/UsersPage'));
 const AuditPage = lazy(() => import('./pages/AuditPage'));
 const TwinPage = lazy(() => import('./pages/TwinPage'));
-// /layout：WS-D1 合并前挂占位；合并后改为 import('./features/layout-designer/index.tsx') 的 LayoutDesignerPage。
-const LayoutPage = lazy(() => import('./features/layout-designer-shim/LayoutDesignerShim'));
+// /layout：WS-D1 的 LayoutDesignerPage（独立懒加载块，含 konva）
+const LayoutPage = lazy(() => import('./pages/LayoutPage'));
 
 export const queryClient = new QueryClient({
   defaultOptions: {

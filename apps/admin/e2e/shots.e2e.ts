@@ -43,7 +43,10 @@ test('所有页面可打开且无控制台错误（admin）', async ({ page }) =
   ]) {
     await page.goto(path);
     await expect(
-      page.locator('.ant-layout-content').locator('h4, [data-testid=layout-shim]').first(),
+      page
+        .locator('.ant-layout-content')
+        .locator('h4, [data-testid=layout-designer], [data-testid=no-draft]')
+        .first(),
       path,
     ).toBeVisible({ timeout: 30_000 });
     await page.waitForTimeout(800); // 让页面查询完成（/twin 有 SSE 长连接，不能等 networkidle）

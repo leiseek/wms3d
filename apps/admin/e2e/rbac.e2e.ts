@@ -32,7 +32,9 @@ test('admin：完整菜单；manager 无用户管理', async ({ page }) => {
   await expect(page.getByTestId('side-menu')).toContainText('用户与设备');
   await expect(page.getByTestId('side-menu')).toContainText('布局设计器');
   await page.getByTestId('nav-layout').click();
-  await expect(page.getByTestId('layout-shim')).toBeVisible();
+  await expect(page.getByTestId('layout-designer').or(page.getByTestId('no-draft'))).toBeVisible({
+    timeout: 30_000,
+  });
 });
 
 test('manager：有调整/标签/审计，无用户管理', async ({ page }) => {

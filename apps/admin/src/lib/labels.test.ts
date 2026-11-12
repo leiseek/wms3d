@@ -85,11 +85,11 @@ describe('render 请求体', () => {
     });
     expect(LabelRenderRequest.safeParse(b).success).toBe(true);
   });
-  it('热敏模板忽略起始格；SKU 不带仓库', () => {
+  it('热敏模板忽略起始格；SKU 标签也带仓库（v1.2）', () => {
     expect(buildRenderBody({ ...base, startCell: 5 })).not.toHaveProperty('startCell');
-    expect(buildRenderBody({ ...base, kind: 'SKU', template: 'sku-60x40' })).not.toHaveProperty(
-      'warehouseId',
-    );
+    const sku = buildRenderBody({ ...base, kind: 'SKU', template: 'sku-60x40' });
+    expect(sku.warehouseId).toBe(WH);
+    expect(LabelRenderRequest.safeParse(sku).success).toBe(true);
   });
   it('空选择与超过 5000 张报错', () => {
     expect(() => buildRenderBody({ ...base, ids: [] })).toThrow('请先选择');

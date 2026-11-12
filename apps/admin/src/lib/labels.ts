@@ -80,7 +80,7 @@ export function buildRenderBody(i: RenderInput) {
   return {
     template: i.template,
     kind: i.kind,
-    ...(i.kind === 'SKU' ? {} : { warehouseId: i.warehouseId }),
+    warehouseId: i.warehouseId, // v1.2：SKU 标签也必填（作用域 / 审计 / 补打归属）
     ids: i.ids,
     format: 'PDF' as const,
     dpi: i.dpi,
