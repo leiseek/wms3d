@@ -6,7 +6,7 @@
 import { execFileSync, spawn, type ChildProcess } from 'node:child_process';
 import { randomBytes } from 'node:crypto';
 import { mkdirSync, openSync } from 'node:fs';
-import { ROOT, STATE_DIR, WS, ports, type Target } from './env.ts';
+import { APP_ROOT, ROOT, STATE_DIR, WS, ports, type Target } from './env.ts';
 
 const PG_HOST = process.env.WMS_PG_HOST ?? '127.0.0.1';
 const PG_PORT = process.env.WMS_PG_PORT ?? '55432';
@@ -88,7 +88,7 @@ export async function startMock(port = ports.mock): Promise<Backend> {
   const proc = launch(
     'mock',
     ['--experimental-strip-types', 'scripts/mock-server.ts'],
-    `${ROOT}packages/api-client`,
+    `${APP_ROOT}packages/api-client`,
     cleanEnv({ PORT_API: String(port) }),
   );
   const baseUrl = `http://127.0.0.1:${port}`;
@@ -113,7 +113,7 @@ export async function startReal(port = ports.real): Promise<Backend> {
     // 演示数据（主数据 + 已发布布局 v1；幂等）。以 wms_app 写入，与 db-reset-dev.sh 一致。
     sh(process.execPath, [
       '--experimental-strip-types',
-      'apps/api/src/db/seed-demo.ts',
+      `${APP_ROOT}apps/api/src/db/seed-demo.ts`,
       pgUrl(db, 'wms_app'),
     ]);
   } catch (e) {
@@ -123,7 +123,7 @@ export async function startReal(port = ports.real): Promise<Backend> {
   const proc = launch(
     'api',
     ['--experimental-strip-types', 'src/main.ts'],
-    `${ROOT}apps/api`,
+    `${APP_ROOT}apps/api`,
     cleanEnv({
       PORT_API: String(port),
       HOST: '127.0.0.1',

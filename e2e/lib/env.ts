@@ -7,6 +7,11 @@ import { fileURLToPath } from 'node:url';
 export type Target = 'mock' | 'real';
 
 export const ROOT = fileURLToPath(new URL('../../', import.meta.url));
+/**
+ * 被测代码所在目录（apps/api、packages/api-client）。缺省为本仓库；Lead 集成预演可指向一个合并预览目录
+ * （例如 `git merge-tree` + `git archive` 解出的 main+分支），e2e 用例本身仍取自本仓库。
+ */
+export const APP_ROOT = (process.env.E2E_APP_ROOT ?? ROOT).replace(/\/?$/, '/');
 export const STATE_DIR = fileURLToPath(new URL('../.state/', import.meta.url));
 export const STATE_FILE = `${STATE_DIR}state.json`;
 
