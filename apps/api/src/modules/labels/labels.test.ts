@@ -2,26 +2,6 @@ import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import { LabelTemplate, ReprintRequest } from '@wms3d/contracts';
 import { pgAvailable } from '../../test/pg.ts';
 import { login, setupKit, WH1, type Kit, type Session } from '../../lib/testkit.ts';
-import { checkCapacity, renderLabelsPdf } from './labels-shim.ts';
-
-describe('labels shim', () => {
-  it('容量估算与 A4 分页', async () => {
-    expect(checkCapacity('loc-60x40', 'WH1.A01-01-A01', 203).ok).toBe(true);
-    expect(checkCapacity('loc-60x40', 'X'.repeat(30), 203)).toMatchObject({ ok: false, max: 230 });
-    expect(checkCapacity('rack-100x150', 'X'.repeat(80), 203).ok).toBe(true);
-    const items = Array.from({ length: 30 }, (_, i) => ({
-      kind: 'LOCATION' as const,
-      code: `A-${i}`,
-      payload: `WH1.A-${i}`,
-    }));
-    const pdf = Buffer.from(
-      await renderLabelsPdf({ template: 'a4-3x8', dpi: 203, startCell: 20, items }),
-    ).toString('latin1');
-    expect(pdf.startsWith('%PDF-1.4')).toBe(true);
-    expect(pdf).toMatch(/\/Count 3 /); // 起始格 20：5 + 24 + 1
-    expect(pdf.trimEnd().endsWith('%%EOF')).toBe(true);
-  });
-});
 
 describe.skipIf(!pgAvailable)('labels / 补打队列（07）', () => {
   let k: Kit;
@@ -59,7 +39,7 @@ describe.skipIf(!pgAvailable)('labels / 补打队列（07）', () => {
     expect(items.map((t: { key: string }) => t.key)).toHaveLength(7);
   });
 
-  it('渲染：ids / filter；模板类型不符 400；ZPL 501；超容量 400；审计', async () => {
+  it('渲染：ids / filter；模板类型不符 400；ZPL；货架模板；超容量 400；审计', async () => {
     const r = await api('POST', '/labels/render', {
       template: 'loc-100x50',
       kind: 'LOCATION',
@@ -94,17 +74,48 @@ describe.skipIf(!pgAvailable)('labels / 补打队列（07）', () => {
         })
       ).statusCode,
     ).toBe(400);
+    const zpl = await api('POST', '/labels/render', {
+      template: 'loc-100x50',
+      kind: 'LOCATION',
+      warehouseId: WH1,
+      ids: [locId],
+      format: 'ZPL',
+    });
+    expect(zpl.statusCode).toBe(200);
+    expect(zpl.body).toContain('^XA');
+    expect(zpl.body).toContain('WH1.A01-01-A01');
     expect(
       (
         await api('POST', '/labels/render', {
-          template: 'loc-100x50',
+          template: 'a4-3x8',
           kind: 'LOCATION',
           warehouseId: WH1,
           ids: [locId],
           format: 'ZPL',
         })
       ).statusCode,
-    ).toBe(501);
+    ).toBe(400);
+    // 货架标签只能用 rack-100x150
+    const rackId = (await k.pool.query(`SELECT rack_id FROM locations WHERE id=$1`, [locId]))
+      .rows[0].rack_id;
+    expect(
+      (
+        await api('POST', '/labels/render', {
+          template: 'a4-2x7',
+          kind: 'RACK',
+          warehouseId: WH1,
+          ids: [rackId],
+        })
+      ).statusCode,
+    ).toBe(400);
+    const rk = await api('POST', '/labels/render', {
+      template: 'rack-100x150',
+      kind: 'RACK',
+      warehouseId: WH1,
+      ids: [rackId],
+    });
+    expect(rk.statusCode).toBe(200);
+    expect(rk.rawPayload.subarray(0, 5).toString()).toBe('%PDF-');
     const long = await api('POST', '/skus', {
       code: 'LONG-1',
       name: '超长',
@@ -121,7 +132,7 @@ describe.skipIf(!pgAvailable)('labels / 补打队列（07）', () => {
     const au = await k.pool.query(
       `SELECT count(*)::int AS n FROM audit_logs WHERE action='labels.render'`,
     );
-    expect(au.rows[0].n).toBe(2);
+    expect(au.rows[0].n).toBe(4);
   });
 
   it('校准页：dpi 仅 203/300', async () => {

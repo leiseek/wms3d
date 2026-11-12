@@ -1,4 +1,8 @@
-import { routes, type ReprintRequest as ReprintRequestSchema } from '@wms3d/contracts';
+import {
+  routes,
+  type LabelTemplate,
+  type ReprintRequest as ReprintRequestSchema,
+} from '@wms3d/contracts';
 import type { z } from 'zod';
 import { toPayload } from '@wms3d/domain';
 import { auditCtx, writeAudit } from '../../lib/audit.ts';
@@ -13,16 +17,29 @@ import {
 } from '../../lib/db.ts';
 import { ApiError } from '../../lib/problem.ts';
 import type { ApiModule } from '../types.ts';
-// TODO(ws-a1): WS-E 合并后改为 '@wms3d/labels' 并删除 shim
 import {
   checkCapacity,
-  labelTemplates,
+  labelTemplates as libTemplates,
+  MAX_LABELS_PER_RENDER,
   renderCalibrationPdf,
   renderLabelsPdf,
+  renderLabelsZpl,
   type LabelItem,
-} from './labels-shim.ts';
+} from '@wms3d/labels';
 
-export const MAX_LABELS = 5000;
+export const MAX_LABELS = MAX_LABELS_PER_RENDER;
+
+/** 库内模板描述 → 契约 LabelTemplate（只暴露契约字段）。 */
+export const labelTemplates: LabelTemplate[] = libTemplates.map((t) => ({
+  key: t.key,
+  name: t.name,
+  kinds: [...t.kinds],
+  widthMm: t.widthMm,
+  heightMm: t.heightMm,
+  sheet: t.sheet,
+  maxModules: t.maxModules,
+  supportsBarePayload: t.supportsBarePayload,
+}));
 
 type ReprintRequest = z.infer<typeof ReprintRequestSchema>;
 
@@ -105,8 +122,7 @@ async function resolveItems(
       kind,
       code: x.code,
       payload: toPayload(wh.code, x.code, wh.prefix),
-      title: `${wh.code} ${wh.name}`,
-      ...(x.level ? { subtitle: `L${x.level}` } : {}),
+      subtitle: wh.name,
     }));
   }
   if (kind === 'RACK') {
@@ -123,7 +139,7 @@ async function resolveItems(
       kind,
       code: x.code,
       payload: toPayload(wh.code, x.code, wh.prefix),
-      title: `${wh.code} ${wh.name}`,
+      subtitle: wh.name,
     }));
   }
   const r = await q.query<{ code: string; name: string; barcode: string | null }>(
@@ -144,11 +160,11 @@ export const labelsModule: ApiModule = ({ routes: r, services }) => {
 
   r.register(routes.renderLabels, async ({ body, warehouseId, req, reply }) => {
     const t = labelTemplates.find((x) => x.key === body.template)!;
+    // 货架标签只能用 rack-100x150（模板 kinds 由 @wms3d/labels 定义）
     if (!t.kinds.includes(body.kind))
       throw new ApiError('VALIDATION_FAILED', `模板 ${t.key} 不支持 ${body.kind} 标签`, {
         errors: [{ path: 'template', message: `支持：${t.kinds.join(', ')}` }],
       });
-    if (body.format === 'ZPL') throw new ApiError('NOT_IMPLEMENTED', 'ZPL 为 M5 实验功能（07 §1）');
     const pool = poolOf(services);
     const items = await resolveItems(pool, body.kind, warehouseId!, body.ids, body.filter);
     if (!items.length) throw new ApiError('VALIDATION_FAILED', '没有可打印的对象');
@@ -168,13 +184,21 @@ export const labelsModule: ApiModule = ({ routes: r, services }) => {
           },
         },
       );
-    const pdf = await renderLabelsPdf({
-      template: body.template,
-      dpi: body.dpi,
-      ...(body.startCell ? { startCell: body.startCell } : {}),
-      ...(body.offsetMm ? { offsetMm: body.offsetMm } : {}),
-      items,
-    });
+    // ZPL 为实验性（07 §1）：仅单张标签模板，A4 多联只出 PDF
+    if (body.format === 'ZPL' && t.sheet)
+      throw new ApiError('VALIDATION_FAILED', 'A4 多联模板不支持 ZPL', {
+        errors: [{ path: 'format', message: 'PDF' }],
+      });
+    const out =
+      body.format === 'ZPL'
+        ? await renderLabelsZpl({ template: body.template, dpi: body.dpi, items })
+        : await renderLabelsPdf({
+            template: body.template,
+            dpi: body.dpi,
+            ...(body.startCell ? { startCell: body.startCell } : {}),
+            ...(body.offsetMm ? { offsetMm: body.offsetMm } : {}),
+            items,
+          });
     const done = await withTx(pool, async (c) => {
       let marked: string[] = [];
       if (body.reprintRequestIds?.length) {
@@ -194,19 +218,24 @@ export const labelsModule: ApiModule = ({ routes: r, services }) => {
           template: body.template,
           kind: body.kind,
           dpi: body.dpi,
+          format: body.format,
           count: items.length,
           reprintsDone: marked.length,
         },
       });
       return marked;
     });
+    const zpl = typeof out === 'string';
     return reply
       .code(200)
-      .type('application/pdf')
-      .header('content-disposition', `inline; filename="labels-${body.template}.pdf"`)
+      .type(zpl ? 'application/vnd.zebra.zpl; charset=utf-8' : 'application/pdf')
+      .header(
+        'content-disposition',
+        `inline; filename="labels-${body.template}.${zpl ? 'zpl' : 'pdf'}"`,
+      )
       .header('X-Label-Count', String(items.length))
       .header('X-Reprints-Done', String(done.length))
-      .send(Buffer.from(pdf));
+      .send(zpl ? out : Buffer.from(out));
   });
 
   r.register(routes.calibrationPdf, async ({ query, reply }) => {
