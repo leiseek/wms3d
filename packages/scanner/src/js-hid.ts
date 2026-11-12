@@ -22,7 +22,10 @@ export type JsHidResult =
 export class JsHidDetector {
   private chars: string[] = [];
   private times: number[] = [];
-  constructor(private readonly t = JS_HID) {}
+  private readonly t: typeof JS_HID;
+  constructor(t: typeof JS_HID = JS_HID) {
+    this.t = t;
+  }
 
   feed(k: KeyInput): JsHidResult {
     if (k.key === 'Enter' || k.key === 'Tab') return this.finish();
@@ -53,7 +56,8 @@ export class JsHidDetector {
 
   private maxInterval(): number {
     let m = 0;
-    for (let i = 1; i < this.times.length; i++) m = Math.max(m, this.times[i]! - this.times[i - 1]!);
+    for (let i = 1; i < this.times.length; i++)
+      m = Math.max(m, this.times[i]! - this.times[i - 1]!);
     return m;
   }
 

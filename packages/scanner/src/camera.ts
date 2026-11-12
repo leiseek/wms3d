@@ -15,10 +15,7 @@ export interface AimBox {
   height: number;
 }
 
-export function centerCss(
-  b: DetectedBarcode,
-  dpr: number,
-): { x: number; y: number } | null {
+export function centerCss(b: DetectedBarcode, dpr: number): { x: number; y: number } | null {
   const pts = b.cornerPoints;
   if (!pts || pts.length === 0) return null;
   let x = 0;
@@ -72,11 +69,23 @@ export class CameraAimFilter {
   /** 已触发、等待离框的码 */
   private locked = new Set<string>();
 
+  private box: AimBox;
+
+  private dpr: number;
+
+  private readonly opts: { confirmEvents: number; retriggerAbsentMs: number };
+
   constructor(
-    private box: AimBox,
-    private dpr: number,
-    private readonly opts: { confirmEvents: number; retriggerAbsentMs: number } = CAMERA,
-  ) {}
+    box: AimBox,
+    dpr: number,
+    opts: { confirmEvents: number; retriggerAbsentMs: number } = CAMERA,
+  ) {
+    this.box = box;
+
+    this.dpr = dpr;
+
+    this.opts = opts;
+  }
 
   setBox(box: AimBox, dpr: number): void {
     this.box = box;

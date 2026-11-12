@@ -7,10 +7,15 @@ import type { ScanEvent, Scanner, ScannerStatus, ScanSource } from './types.ts';
 export class ManualScanner implements Scanner {
   private cbs = new Set<(e: ScanEvent) => void>();
   private st: ScannerStatus = 'idle';
+  readonly source: ScanSource;
+  private readonly hooks: { start?: () => Promise<void>; stop?: () => Promise<void> };
   constructor(
-    readonly source: ScanSource,
-    private readonly hooks: { start?: () => Promise<void>; stop?: () => Promise<void> } = {},
-  ) {}
+    source: ScanSource,
+    hooks: { start?: () => Promise<void>; stop?: () => Promise<void> } = {},
+  ) {
+    this.source = source;
+    this.hooks = hooks;
+  }
   async start(): Promise<void> {
     this.st = 'connecting';
     try {
@@ -35,7 +40,11 @@ export class ManualScanner implements Scanner {
     this.cbs.add(cb);
     return () => this.cbs.delete(cb);
   }
-  push(text: string, at = Date.now(), extra: Partial<Omit<ScanEvent, 'text' | 'source'>> = {}): void {
+  push(
+    text: string,
+    at = Date.now(),
+    extra: Partial<Omit<ScanEvent, 'text' | 'source'>> = {},
+  ): void {
     const e: ScanEvent = { text, source: this.source, at, ...extra };
     for (const cb of [...this.cbs]) cb(e);
   }

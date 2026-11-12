@@ -92,9 +92,7 @@ describe('ScanHub', () => {
 
 describe('JsHidDetector（04 §2.1 JS 兜底）', () => {
   const type = (d: JsHidDetector, s: string, t0: number, gap: number) => {
-    let r = d.feed({ key: 'x', at: 0 });
-    d.reset();
-    for (let i = 0; i < s.length; i++) r = d.feed({ key: s[i]!, at: t0 + i * gap });
+    for (let i = 0; i < s.length; i++) d.feed({ key: s[i]!, at: t0 + i * gap });
     return d.feed({ key: 'Enter', at: t0 + s.length * gap });
   };
   it('快速键入 + Enter → 扫码', () => {
