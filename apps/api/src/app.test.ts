@@ -45,10 +45,20 @@ describe('API 外壳', () => {
     await app.close();
   });
 
-  it('所有契约路由均已注册（实现或 501 桩）', async () => {
+  it('所有契约路由均已注册（实现或 501 桩）；ws-a1 路由全部已实现', async () => {
+    const bare = buildApp({ env: {}, modules: [] });
+    await bare.ready();
+    expect(bare.stubRoutes.length).toBe(routeList.length);
+    await bare.close();
     const app = buildApp({ env: {} });
     await app.ready();
-    expect(app.stubRoutes.length + 2).toBe(routeList.length); // health/ready 已实现
+    const stubs = new Set(app.stubRoutes);
+    const a1 = routeList.filter((r) => r.owner === 'ws-a1');
+    expect(a1.length).toBeGreaterThan(40);
+    expect(a1.filter((r) => stubs.has(r.id)).map((r) => r.id)).toEqual([]);
+    expect(
+      app.stubRoutes.every((id) => routeList.find((r) => r.id === id)?.owner !== 'ws-a1'),
+    ).toBe(true);
     await app.close();
   });
 
@@ -95,9 +105,10 @@ describe('API 外壳', () => {
         })
       ).json().code,
     ).toBe('PASSWORD_CHANGE_REQUIRED');
-    expect((await app.inject({ method: 'GET', url: '/api/v1/me', headers: H })).statusCode).toBe(
-      501,
-    );
+    // /me 允许改密前访问：越过守卫进入处理器（无库 → 500 INTERNAL，而非 403 PASSWORD_CHANGE_REQUIRED）
+    const me = await app.inject({ method: 'GET', url: '/api/v1/me', headers: H });
+    expect(me.json().code).not.toBe('PASSWORD_CHANGE_REQUIRED');
+    expect(me.statusCode).toBe(500);
     await app.close();
   });
 
