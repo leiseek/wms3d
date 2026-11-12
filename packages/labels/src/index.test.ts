@@ -6,6 +6,7 @@ import {
   getLabelTemplate,
   isValidEan13,
   LabelCapacityError,
+  LabelKindMismatchError,
   labelTemplates,
   maxModulesFor,
   renderLabelsPdf,
@@ -126,6 +127,43 @@ describe('PDF / ZPL 渲染（结构）', () => {
         items: [{ kind: 'LOCATION', code: 'X', payload: long }],
       }),
     ).rejects.toBeInstanceOf(LabelCapacityError);
+  });
+
+  it('货架码必须用 rack-100x150，仓位模板拒绝 RACK', async () => {
+    const rack: LabelItem = { kind: 'RACK', code: 'RA03-L02', payload: 'WH1.RA03-L02' };
+    await expect(
+      renderLabelsPdf({ template: 'loc-100x50', dpi: 203, items: [rack] }),
+    ).rejects.toBeInstanceOf(LabelKindMismatchError);
+    await expect(
+      renderLabelsZpl({ template: 'loc-60x40', dpi: 203, items: [rack] }),
+    ).rejects.toBeInstanceOf(LabelKindMismatchError);
+    const pdf = await renderLabelsPdf({ template: 'rack-100x150', dpi: 203, items: [rack] });
+    expect(pdf.byteLength).toBeGreaterThan(100);
+  });
+
+  it('模板 kinds 与 item.kind 必须匹配（A4 允许 LOCATION/SKU，拒绝 RACK）', async () => {
+    await expect(
+      renderLabelsPdf({
+        template: 'a4-3x8',
+        dpi: 203,
+        items: [{ kind: 'RACK', code: 'RA03-L02', payload: 'WH1.RA03-L02' }],
+      }),
+    ).rejects.toBeInstanceOf(LabelKindMismatchError);
+    await expect(
+      renderLabelsPdf({
+        template: 'rack-100x150',
+        dpi: 203,
+        items: [{ kind: 'LOCATION', code: 'A03-17-C02', payload: 'WH1.A03-17-C02' }],
+      }),
+    ).rejects.toBeInstanceOf(LabelKindMismatchError);
+    const sku: LabelItem = {
+      kind: 'SKU',
+      code: 'SKU-DEMO-01',
+      payload: 'SKU-DEMO-01',
+      title: '示例',
+    };
+    const pdf = await renderLabelsPdf({ template: 'a4-3x8', dpi: 203, items: [sku] });
+    expect(pdf.byteLength).toBeGreaterThan(100);
   });
 
   it('热敏页尺寸等于标签尺寸；A4 为 210×297mm', async () => {

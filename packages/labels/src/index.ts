@@ -10,6 +10,8 @@ export {
   xDimension,
   maxModulesFor,
   isPrefixedPayload,
+  assertItemKind,
+  LabelKindMismatchError,
 } from './templates.ts';
 export type { TemplateSpec, XDimension } from './templates.ts';
 export { checkCapacity, assertCapacity, LabelCapacityError } from './capacity.ts';
@@ -29,6 +31,7 @@ export type {
   CapacityResult,
   Dpi,
   LabelKind,
+  LabelTemplate,
 } from './types.ts';
 export { MAX_LABELS_PER_RENDER } from './types.ts';
 export { mmToPt, ptToMm, dotsToMm, dotsToPt } from './units.ts';

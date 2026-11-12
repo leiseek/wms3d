@@ -2,7 +2,7 @@
  * 生成样张 PDF 与 PNG 预览，写入 /workspace/wms3d-artifacts/labels/（并同步一份到 ws-e/）。
  */
 import { execFileSync } from 'node:child_process';
-import { existsSync, mkdirSync, renameSync, writeFileSync } from 'node:fs';
+import { existsSync, mkdirSync, renameSync, unlinkSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { renderLabelsPdf, type LabelItem } from '../src/index.ts';
 
@@ -34,11 +34,6 @@ const samples: {
   { name: 'a4-3x8-locations', template: 'a4-3x8', items: a4Items },
   { name: 'thermal-100x50-location', template: 'loc-100x50', items: [loc('A03-17-C02')] },
   {
-    name: 'thermal-100x50-rack',
-    template: 'loc-100x50',
-    items: [{ kind: 'RACK', code: 'RA03-L02', payload: 'WH1.RA03-L02', subtitle: '一号仓库' }],
-  },
-  {
     name: 'rack-100x150',
     template: 'rack-100x150',
     items: [{ kind: 'RACK', code: 'RA03-L02', payload: 'WH1.RA03-L02', subtitle: '一号仓库' }],
@@ -46,6 +41,14 @@ const samples: {
 ];
 
 for (const dir of DIRS) mkdirSync(dir, { recursive: true });
+
+// 删除误把货架码印在 loc-100x50 上的旧样张
+for (const dir of DIRS) {
+  for (const stale of ['thermal-100x50-rack.pdf', 'thermal-100x50-rack.png']) {
+    const f = join(dir, stale);
+    if (existsSync(f)) unlinkSync(f);
+  }
+}
 
 for (const s of samples) {
   const pdf = await renderLabelsPdf({ template: s.template, dpi: 203, items: s.items });

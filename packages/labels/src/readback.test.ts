@@ -116,6 +116,41 @@ describe('回读：PDF → pdftoppm 300dpi → zxing-wasm', { timeout: 60_000 },
     expect(texts).toContain('WH1.A03-17-C02');
   });
 
+  it('loc-100x50 可见 QR 约 16–18mm，且回读成功', async () => {
+    const pdf = await renderLabelsPdf({ template: 'loc-100x50', dpi: 203, items: [LOC] });
+    const texts = await decodePdf(pdf, 300);
+    const hits = texts.filter((t) => t === LOC.payload);
+    expect(hits.length).toBeGreaterThanOrEqual(2);
+    // 300dpi 栅格上量右上角 QR 墨区（不含静区）
+    const dirPdf = await rasterPngForMeasure(pdf, 300);
+    const { width, height, pixels } = dirPdf;
+    const mmPerPx = 25.4 / 300;
+    // 右上 QR 区：靠右约 x=73–100mm、y=0–29mm（排除左侧层箭头，条码之上）
+    const x0 = Math.floor((73 / 100) * width);
+    const x1 = width;
+    const y1 = Math.floor((29 / 50) * height);
+    let minx = width,
+      miny = height,
+      maxx = 0,
+      maxy = 0;
+    for (let y = 0; y < y1; y++) {
+      for (let x = x0; x < x1; x++) {
+        if (pixels[y * width + x]! < 128) {
+          if (x < minx) minx = x;
+          if (y < miny) miny = y;
+          if (x > maxx) maxx = x;
+          if (y > maxy) maxy = y;
+        }
+      }
+    }
+    const visW = (maxx - minx + 1) * mmPerPx;
+    const visH = (maxy - miny + 1) * mmPerPx;
+    expect(visW, `QR width ${visW.toFixed(2)}mm`).toBeGreaterThanOrEqual(15.5);
+    expect(visW).toBeLessThanOrEqual(19);
+    expect(visH, `QR height ${visH.toFixed(2)}mm`).toBeGreaterThanOrEqual(15.5);
+    expect(visH).toBeLessThanOrEqual(19);
+  });
+
   it('模块宽度与取整后的 X 维一致（loc-60x40 @203，体宽 = 189 模块 × X）', async () => {
     const pdf = await renderLabelsPdf({ template: 'loc-60x40', dpi: 203, items: [LOC] });
     const { width, height, pixels } = rasterPgm(pdf, 203);
@@ -172,6 +207,23 @@ async function decodePdf(pdf: Uint8Array, dpi: number): Promise<string[]> {
     }
   }
   return texts;
+}
+
+function rasterPngForMeasure(
+  pdf: Uint8Array,
+  dpi: number,
+): { width: number; height: number; pixels: Uint8Array } {
+  const dir = mkdtempSync(join(tmpdir(), 'wms-labels-qr-'));
+  const pdfPath = join(dir, 'in.pdf');
+  writeFileSync(pdfPath, pdf);
+  execFileSync('/usr/bin/pdftoppm', ['-gray', '-r', String(dpi), pdfPath, join(dir, 'page')], {
+    stdio: 'pipe',
+  });
+  const file = readdirSync(dir)
+    .filter((f) => f.endsWith('.pgm'))
+    .sort()[0];
+  if (!file) throw new Error('pdftoppm 未生成 pgm');
+  return parsePgm(readFileSync(join(dir, file)));
 }
 
 function rasterPgm(
