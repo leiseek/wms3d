@@ -1,17 +1,9 @@
-import type { LabelTemplateKey } from '@wms3d/contracts';
+import type { LabelKind, LabelTemplate, LabelTemplateKey } from '@wms3d/contracts';
 import { dotsToMm } from './units.ts';
-import type { Dpi, LabelKind } from './types.ts';
+import type { Dpi } from './types.ts';
 
-/** 与 contracts `LabelTemplate` 对齐的库内描述（schema 尚未 export type）。 */
-export interface TemplateSpec {
-  key: LabelTemplateKey;
-  name: string;
-  kinds: LabelKind[];
-  widthMm: number;
-  heightMm: number;
-  sheet: { cols: number; rows: number } | null;
-  maxModules: { dpi203: number; dpi300: number } | null;
-  supportsBarePayload: boolean;
+/** 契约 `LabelTemplate` + 库内渲染参数。 */
+export interface TemplateSpec extends LabelTemplate {
   /** Code128 可用宽度（含左右静区），mm。rack 无线性条码。 */
   usableWidthMm: number | null;
   /** 70×30 在裸编码时改用更宽 X 维。 */
@@ -163,4 +155,33 @@ export function maxModulesFor(key: LabelTemplateKey, dpi: Dpi, barePayload = fal
   const published = dpi === 203 ? spec.maxModules?.dpi203 : spec.maxModules?.dpi300;
   if (published != null) return published;
   return Math.floor(usable / x.mm + 1e-9);
+}
+
+export class LabelKindMismatchError extends Error {
+  readonly template: LabelTemplateKey;
+  readonly kind: LabelKind;
+  readonly allowed: readonly LabelKind[];
+
+  constructor(opts: {
+    template: LabelTemplateKey;
+    kind: LabelKind;
+    allowed: readonly LabelKind[];
+  }) {
+    const allowed = opts.allowed.join('/');
+    super(
+      `模板 ${opts.template} 只支持 ${allowed}，不能用于 ${opts.kind}。` +
+        (opts.kind === 'RACK' ? '货架标签请使用 rack-100x150。' : ''),
+    );
+    this.name = 'LabelKindMismatchError';
+    this.template = opts.template;
+    this.kind = opts.kind;
+    this.allowed = opts.allowed;
+  }
+}
+
+export function assertItemKind(template: LabelTemplateKey, kind: LabelKind): void {
+  const spec = getLabelTemplate(template);
+  if (!spec.kinds.includes(kind)) {
+    throw new LabelKindMismatchError({ template, kind, allowed: spec.kinds });
+  }
 }

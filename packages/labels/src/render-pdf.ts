@@ -3,9 +3,15 @@ import type { LabelTemplateKey } from '@wms3d/contracts';
 import PDFDocument from 'pdfkit';
 import { assertCapacity } from './capacity.ts';
 import { drawLinearBarcode, drawQrCode } from './barcode.ts';
-import { countPayloadModules, skuSymbology } from './barcode-metrics.ts';
+import { countPayloadModules, qrRaw, skuSymbology } from './barcode-metrics.ts';
 import { LABEL_FONT_NAME, resolveLabelFontPath } from './fonts.ts';
-import { getLabelTemplate, isPrefixedPayload, xDimension, type TemplateSpec } from './templates.ts';
+import {
+  assertItemKind,
+  getLabelTemplate,
+  isPrefixedPayload,
+  xDimension,
+  type TemplateSpec,
+} from './templates.ts';
 import type { CalibrationInput, Dpi, LabelItem, LabelRenderInput } from './types.ts';
 import { MAX_LABELS_PER_RENDER } from './types.ts';
 import { mmToPt } from './units.ts';
@@ -67,7 +73,13 @@ function fillText(
   text: string,
   xMm: number,
   yMm: number,
-  opts: { fontMm: number; widthMm?: number; align?: 'left' | 'center' | 'right'; lineGap?: number },
+  opts: {
+    fontMm: number;
+    widthMm?: number;
+    align?: 'left' | 'center' | 'right';
+    lineGap?: number;
+    lineBreak?: boolean;
+  },
 ): void {
   doc
     .font(LABEL_FONT_NAME)
@@ -76,7 +88,7 @@ function fillText(
     .text(text, mmToPt(xMm), mmToPt(yMm), {
       width: opts.widthMm != null ? mmToPt(opts.widthMm) : undefined,
       align: opts.align ?? 'left',
-      lineBreak: opts.widthMm != null,
+      lineBreak: opts.lineBreak ?? opts.widthMm != null,
       lineGap: opts.lineGap ?? 0,
     });
 }
@@ -112,30 +124,51 @@ function linearOpts(template: LabelTemplateKey, item: LabelItem, dpi: Dpi) {
   return { x, bcid, bare };
 }
 
+/** loc-100x50：可见 QR 目标 18mm（16–18），含静区边长随版本缩放，且不挤占条码。 */
+function loc100x50QrTotalMm(payload: string): number {
+  const quiet = 4;
+  const visibleTargetMm = 18;
+  const raw = qrRaw(payload);
+  const totalModules = raw.pixx + 2 * quiet;
+  const barY = 50 - MARGIN_MM - BAR_HEIGHT_MM - 2; // 31
+  const maxByHeight = barY - MARGIN_MM - 2; // 与条码至少 2mm
+  const maxByWidth = 27; // 为左侧大号编码留约 60mm
+  const rawTotal = (visibleTargetMm / raw.pixx) * totalModules;
+  return Math.min(rawTotal, maxByHeight, maxByWidth);
+}
+
 function drawLoc100x50(doc: Doc, item: LabelItem, dpi: Dpi, ox: number, oy: number): void {
   const { x, bcid } = linearOpts('loc-100x50', item, dpi);
   doc.save();
   doc.translate(mmToPt(ox), mmToPt(oy));
-  const qrSize = 16;
+  const qrSize = loc100x50QrTotalMm(item.payload);
   const arrowSize = 8;
-  fillText(doc, item.code, MARGIN_MM, MARGIN_MM, {
-    fontMm: 12,
-    widthMm: 100 - MARGIN_MM * 2 - qrSize - arrowSize - 2,
+  const codeFontMm = 12;
+  const codeY = MARGIN_MM;
+  // QR 靠右，层箭头放在副标题行，避免挤掉大号编码宽度导致换行。
+  const qrX = 100 - MARGIN_MM - qrSize;
+  const textWidth = qrX - MARGIN_MM - 2;
+  fillText(doc, item.code, MARGIN_MM, codeY, {
+    fontMm: codeFontMm,
+    widthMm: textWidth,
+    lineBreak: false,
   });
   const wh = [warehouseOf(item), item.subtitle].filter(Boolean).join('  ');
+  const level = levelOf(item.code);
+  const subtitleWidth = textWidth - (level ? arrowSize + 1 : 0);
   if (wh) {
-    fillText(doc, wh, MARGIN_MM, 15, { fontMm: 3.5, widthMm: 100 - qrSize - arrowSize - 8 });
+    // 大号编码字形底部约 14.2mm，副标题从 y=17 起，间距 ≥ 2mm。
+    fillText(doc, wh, MARGIN_MM, 17, { fontMm: 3.5, widthMm: subtitleWidth });
+  }
+  if (level) {
+    drawLevelArrow(doc, qrX - 1 - arrowSize, 16, arrowSize, level);
   }
   drawQrCode(doc, {
-    xPt: mmToPt(100 - MARGIN_MM - qrSize - arrowSize - 1),
+    xPt: mmToPt(qrX),
     yPt: mmToPt(MARGIN_MM),
     text: item.payload,
     sizePt: mmToPt(qrSize),
   });
-  const level = levelOf(item.code);
-  if (level) {
-    drawLevelArrow(doc, 100 - MARGIN_MM - arrowSize, MARGIN_MM, arrowSize, level);
-  }
 
   const barY = 50 - MARGIN_MM - BAR_HEIGHT_MM - 2;
   drawLinearBarcode(doc, {
@@ -155,7 +188,7 @@ function drawLoc60x40(doc: Doc, item: LabelItem, dpi: Dpi, ox: number, oy: numbe
   doc.translate(mmToPt(ox), mmToPt(oy));
   fillText(doc, item.code, MARGIN_MM, MARGIN_MM, { fontMm: 8, widthMm: 56 });
   const wh = warehouseOf(item);
-  if (wh) fillText(doc, wh, MARGIN_MM, 11, { fontMm: 3, widthMm: 56 });
+  if (wh) fillText(doc, wh, MARGIN_MM, 12.5, { fontMm: 3, widthMm: 56 });
   drawLinearBarcode(doc, {
     xPt: mmToPt(MARGIN_MM),
     yPt: mmToPt(40 - MARGIN_MM - BAR_HEIGHT_MM),
@@ -192,7 +225,7 @@ function drawRack(doc: Doc, item: LabelItem, _dpi: Dpi, ox: number, oy: number):
   doc.translate(mmToPt(ox), mmToPt(oy));
   fillText(doc, item.code, MARGIN_MM, 6, { fontMm: 22, widthMm: 96, align: 'center' });
   const wh = [warehouseOf(item), item.subtitle].filter(Boolean).join('  ');
-  if (wh) fillText(doc, wh, MARGIN_MM, 30, { fontMm: 5, widthMm: 96, align: 'center' });
+  if (wh) fillText(doc, wh, MARGIN_MM, 32, { fontMm: 5, widthMm: 96, align: 'center' });
   const qrSize = 70;
   drawQrCode(doc, {
     xPt: mmToPt((100 - qrSize) / 2),
@@ -225,10 +258,10 @@ function drawA4Cell(
     widthMm: cellW - 4 - qrSize,
   });
   if (item.kind === 'SKU' && item.code && item.title) {
-    fillText(doc, item.code, 2, 8, { fontMm: 3.5, widthMm: cellW - 4 - qrSize });
+    fillText(doc, item.code, 2, 11, { fontMm: 3.5, widthMm: cellW - 4 - qrSize });
   } else {
     const wh = warehouseOf(item);
-    if (wh) fillText(doc, wh, 2, 9, { fontMm: 2.8, widthMm: cellW - 4 - qrSize });
+    if (wh) fillText(doc, wh, 2, 11, { fontMm: 2.8, widthMm: cellW - 4 - qrSize });
   }
   if (withQr) {
     drawQrCode(doc, {
@@ -278,6 +311,7 @@ function drawOne(
   ox: number,
   oy: number,
 ): void {
+  assertItemKind(spec.key, item.kind);
   assertCapacity(spec.key, item.payload, dpi);
   const cellW = spec.cellMm?.width ?? spec.widthMm;
   const cellH = spec.cellMm?.height ?? spec.heightMm;

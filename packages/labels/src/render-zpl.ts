@@ -1,7 +1,7 @@
 import { splitPayload } from '@wms3d/domain';
 import { assertCapacity } from './capacity.ts';
 import { skuSymbology } from './barcode-metrics.ts';
-import { getLabelTemplate, isPrefixedPayload, xDimension } from './templates.ts';
+import { assertItemKind, getLabelTemplate, isPrefixedPayload, xDimension } from './templates.ts';
 import type { LabelItem, ZplRenderInput } from './types.ts';
 import { MAX_LABELS_PER_RENDER } from './types.ts';
 
@@ -32,6 +32,7 @@ function renderOne(
   dpi: ZplRenderInput['dpi'],
   item: LabelItem,
 ): string {
+  assertItemKind(key, item.kind);
   assertCapacity(key, item.payload, dpi);
   const spec = getLabelTemplate(key);
   const bare = !isPrefixedPayload(item.payload);

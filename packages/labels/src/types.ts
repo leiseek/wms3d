@@ -1,7 +1,6 @@
-import type { LabelTemplateKey } from '@wms3d/contracts';
+import type { LabelKind, LabelTemplateKey } from '@wms3d/contracts';
 
-/** 与 contracts `LabelKind` 一致（该 schema 尚未 export type，见 contract-requests）。 */
-export type LabelKind = 'LOCATION' | 'RACK' | 'SKU';
+export type { LabelKind, LabelTemplate } from '@wms3d/contracts';
 
 export type Dpi = 203 | 300;
 
