@@ -30,7 +30,9 @@ export const LabelRenderRequest = z
   .object({
     template: LabelTemplateKey,
     kind: LabelKind,
-    warehouseId: Id.optional().describe('kind=LOCATION/RACK 必填'),
+    warehouseId: Id.describe(
+      'v1.2（WS-A1-2）：必填（SKU 标签也带当前仓库，用于作用域、审计与补打队列归属）',
+    ),
     ids: z.array(Id).max(5000).optional(),
     filter: z
       .object({

@@ -1,7 +1,7 @@
 import { z } from 'zod';
 
 /** 契约版本：contract-v1 冻结后只允许向后兼容的新增（新可选字段、新端点）。破坏性变更 = contract-v2。 */
-export const CONTRACT_VERSION = '1.1.0';
+export const CONTRACT_VERSION = '1.2.0';
 export const API_PREFIX = '/api/v1';
 
 // ---------- 基础类型 ----------

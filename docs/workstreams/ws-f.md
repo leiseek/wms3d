@@ -51,3 +51,8 @@ pnpm check:ownership                        # 改动只能落在下方“独占�
 ## 备注
 - 不要停/重建共享 PG 实例，不要改其他 WS 的库；不要安装系统级服务到真实 systemd（`--foreground` 模式验证）。
 - 不连接任何外部服务、不注册任何付费服务；需要外部存储的步骤只交付脚本与说明。
+
+## Lead 更新 · contract-v1.2（2026-11-12 PT）
+- **备份状态写入（来自 ws-a2-1 #6）**：备份脚本完成后写入 `ops_status`，键 `'backup'`，值 `{ lastLocalAt?: ISO, lastRemoteAt?: ISO, remoteConfigured?: boolean }`；看板会读取它。
+- `pnpm db:reset:dev` 现在会写演示库存（`WMS_SEED_STOCK=0` 跳过）。移动端 e2e：`pnpm --filter @wms3d/mobile e2e`；twin3d e2e/基准见 `packages/twin3d/README`。纳入 `scripts/ci-local.sh` 的 e2e 阶段。
+- 联合验收 #5 已有：`apps/api/src/test/joint-5.test.ts`。

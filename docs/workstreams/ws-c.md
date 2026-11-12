@@ -57,3 +57,8 @@ pnpm check:ownership                        # 改动只能落在下方“独占�
 - 本机无 KVM/模拟器/真机：真机清单（04 §7）列入 M6 发布门禁，不要声称已真机验证。
 - Gradle 只经 `pnpm apk:debug`（`flock /tmp/wms3d-gradle.lock`），不要并行起 Gradle 守护进程。
 - `capacitor.config.ts` 的 `minWebViewVersion / minHuaweiWebViewVersion / errorPath` 已设置；改动须写明理由。
+
+## Lead 更新 · contract-v1.2（2026-11-12 PT）
+已合并到 main：ws-c M3（9ec9d84）。请 `git rebase main`。
+- ws-c-1：#1 插件改为 npm 包这件事排到 M4.5，由 Lead 统一做，**在此之前保留**本地 Gradle 模块；#2 `apps/mobile` 已有 `pnpm --filter @wms3d/mobile e2e`；#3 troika 声明转给 WS-D2。
+- 契约 v1.2 对移动端的影响：改密错误现在是 400 `VALIDATION_FAILED`（不再是 401，别触发刷新）；OPERATOR 冲正违规是 403 `FORBIDDEN`；digest 可以复算（算法见 `SyncDigest.hash` 描述），离线主数据校验可以用。

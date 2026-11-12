@@ -6,6 +6,7 @@ import { demo } from '@wms3d/domain';
 import { createApiClient, newIdempotencyKey, ApiError, type ApiClient } from '../index.ts';
 import { createMockApi, createMswHandlers, type MockApi } from './index.ts';
 import { buildMockServer } from './server.ts';
+import { byteCompare, sha256Hex } from './util.ts';
 
 const WH1 = demo.demoWarehouse.id;
 const WH2 = demo.demoWarehouse2.id;
@@ -110,8 +111,20 @@ describe('mock 场景 × 契约校验（所有 JSON 响应用 contracts schema �
       body: { deviceId: 'dev-test-0002', appVersion: '0.1.0', pendingOutbox: 2 },
     });
     await expect(op.r.listUsers({ query: {} })).rejects.toMatchObject({ code: 'FORBIDDEN' });
+    // v1.2（WS-A1-1）：当前口令错误 / 新旧相同 → 400 VALIDATION_FAILED（不触发 401 刷新）
+    await expect(
+      op.r.changePassword({ body: { currentPassword: 'wrong-pass', newPassword: 'Other#pass1' } }),
+    ).rejects.toMatchObject({ status: 400, code: 'VALIDATION_FAILED' });
+    await expect(
+      op.r.changePassword({
+        body: { currentPassword: demo.DEMO_PASSWORD, newPassword: demo.DEMO_PASSWORD },
+      }),
+    ).rejects.toMatchObject({ status: 400, code: 'VALIDATION_FAILED' });
     await op.r.changePassword({
-      body: { currentPassword: demo.DEMO_PASSWORD, newPassword: demo.DEMO_PASSWORD },
+      body: { currentPassword: demo.DEMO_PASSWORD, newPassword: 'Other#pass1' },
+    });
+    await op.r.changePassword({
+      body: { currentPassword: 'Other#pass1', newPassword: demo.DEMO_PASSWORD },
     });
     // 刷新与登出（另开一个会话）
     let tk: string | null = null;
@@ -232,8 +245,18 @@ describe('mock 场景 × 契约校验（所有 JSON 响应用 contracts schema �
     const p1 = await op.r.syncMasterdata({ query: { warehouseId: WH1, limit: 100 } });
     expect(p1.hasMore).toBe(true);
     expect(p1.total).toBeGreaterThan(400);
-    await op.r.syncMasterdata({ query: { warehouseId: WH1, cursor: p1.nextCursor!, limit: 2000 } });
-    await op.r.syncDigest({ query: { warehouseId: WH1 } });
+    const p2 = await op.r.syncMasterdata({
+      query: { warehouseId: WH1, cursor: p1.nextCursor!, limit: 2000 },
+    });
+    // v1.2（WS-A2-1）：客户端可用同步结果复算 digest
+    const lines = [p1, p2].flatMap((p) => [
+      ...p.skus.map((x) => `sku|${x.id}|${x.updatedAt}`),
+      ...p.barcodes.map((x) => `barcode|${x.id}|${x.updatedAt}`),
+      ...p.locations.map((x) => `location|${x.id}|${x.updatedAt}`),
+    ]);
+    lines.sort(byteCompare);
+    const dg = await op.r.syncDigest({ query: { warehouseId: WH1 } });
+    expect(dg.hash).toBe(sha256Hex(lines.join('\n')));
   });
 
   it('库存交易、幂等、冲正、查询', async () => {
@@ -374,6 +397,39 @@ describe('mock 场景 × 契约校验（所有 JSON 响应用 contracts schema �
       body: { template: 'loc-100x50', kind: 'LOCATION', warehouseId: WH1, ids: [loc.id] },
     });
     expect(pdf.headers.get('content-type')).toMatch(/pdf/);
+    expect(pdf.headers.get('x-label-count')).toBe('1');
+    // v1.2（WS-A1-2/3）：ZPL 可选输出；A4 + ZPL → 400；RACK 只能用 rack-100x150
+    const zpl = await admin.r.renderLabels({
+      body: {
+        template: 'loc-100x50',
+        kind: 'LOCATION',
+        warehouseId: WH1,
+        ids: [loc.id],
+        format: 'ZPL',
+      },
+    });
+    expect(zpl.headers.get('content-type')).toMatch(/zpl/);
+    expect(await zpl.text()).toContain('^XA');
+    await expect(
+      admin.r.renderLabels({
+        body: {
+          template: 'a4-3x8',
+          kind: 'LOCATION',
+          warehouseId: WH1,
+          ids: [loc.id],
+          format: 'ZPL',
+        },
+      }),
+    ).rejects.toMatchObject({ status: 400, code: 'VALIDATION_FAILED' });
+    await expect(
+      admin.r.renderLabels({
+        body: { template: 'loc-100x50', kind: 'RACK', warehouseId: WH1, ids: [loc.id] },
+      }),
+    ).rejects.toMatchObject({ status: 400 });
+    expect(tpl.items.find((t) => t.key === 'loc-100x50')!.maxModules).toEqual({
+      dpi203: 253,
+      dpi300: 281,
+    });
     await admin.r.calibrationPdf({ query: { template: 'loc-100x50' } });
     const rp = await op.r.createReprint({
       body: { warehouseId: WH1, kind: 'LOCATION', entityId: loc.id, reason: 'DAMAGED' },

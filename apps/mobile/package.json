@@ -7,7 +7,8 @@
     "dev": "vite --port ${PORT_MOBILE:-4020} --strictPort",
     "build": "tsc -p tsconfig.json --noEmit && vite build",
     "typecheck": "tsc -p tsconfig.json --noEmit",
-    "cap:sync": "cap sync android"
+    "cap:sync": "cap sync android",
+    "e2e": "playwright test -c e2e/playwright.config.ts"
   },
   "dependencies": {
     "@capacitor-community/sqlite": "~8.1.1",

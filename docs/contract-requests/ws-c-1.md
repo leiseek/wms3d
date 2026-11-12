@@ -27,3 +27,9 @@
 
 - `apps/mobile/tsconfig.json` include 了 `../../packages/twin3d/src/troika.d.ts`（twin3d 以源码导出，其环境声明需被消费方看到）。
   建议 WS-D2 将该声明改为在 `src/index.ts` 中 `import type` 可达的模块声明，或在包内 `types` 字段导出，消费方即可去掉此 include。
+
+---
+**Lead 决定（2026-11-12 PT，contract-v1.2）**
+1. 插件打包：**接受方向，排到 M4.5 由 Lead 统一做**。要加 `native/capacitor-scanner/package.json` 和 `apps/mobile` 的 `workspace:*` 依赖，会改 lockfile 和 Gradle 配置，与你正在进行的工作有冲突风险。在此之前保留本地 Gradle 模块 + 手动 register。
+2. e2e 入口：**已做**。`apps/mobile` 新增 `"e2e": "playwright test -c e2e/playwright.config.ts"`；暂不纳入 `pnpm verify`，WS-F 在 CI 脚本中作为 e2e 阶段调用。
+3. troika 类型声明：**转给 WS-D2**（M4.5 打磨项）：在 `packages/twin3d` 内让声明从 `src/index.ts` 可达，之后 apps/mobile 去掉 include。

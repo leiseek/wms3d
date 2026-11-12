@@ -56,3 +56,9 @@ pnpm check:ownership                        # 改动只能落在下方“独占�
 - 不要自己 fetch，统一走 api-client；需要新端点或字段 → contract request。
 - 3D 页懒加载 `@wms3d/twin3d`（WS-D2 第 2 天交付 v0）。
 - 截图证据放 `/workspace/wms3d-artifacts/ws-b/`。
+
+## Lead 更新 · contract-v1.2（2026-11-12 PT）
+可直接对 main 的 mock 开发：
+- 改密：当前口令错误 / 新旧相同 → 400 `VALIDATION_FAILED`，按 `errors[].path` 标在对应字段上。
+- 标签打印页：`renderLabels` 的 `warehouseId` 必填；`format: 'ZPL'` 返回 `application/vnd.zebra.zpl`（A4 模板 400，UI 应禁用该组合）；kind 必须在模板 `kinds` 内（RACK 只用 rack-100x150）；响应头 `X-Label-Count` / `X-Reprints-Done`；模板 maxModules 已是真实值，可以直接做容量提示。
+- OPERATOR 冲正违规：403 `FORBIDDEN`。真实后端 A1/A2/E 已合并；`pnpm db:reset:dev` 会带演示库存。

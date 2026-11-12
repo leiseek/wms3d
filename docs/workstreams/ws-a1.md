@@ -69,3 +69,13 @@ pnpm check:ownership                        # 改动只能落在下方“独占�
 - 实现一个端点：在 `modules/<tag>/index.ts` 中 `routes.register(routes.<id>, async (ctx) => …)`；未注册的仍返回 501。
 - schema/迁移归 Lead：需要新列/索引 → contract request。`apps/api/src/db/schema.ts` 可读不可改。
 - mock（`packages/api-client/src/mock/handlers.ts`）是行为参考，真实实现以设计文档为准；发现 mock 与设计不符写 contract request。
+
+## Lead 更新 · contract-v1.2（2026-11-12 PT）
+已合并到 main：ws-a1 M1（9dca982）。请 `git rebase main`（tag `contract-v1.2`）。
+- **a1-1 接受**：契约 changePassword 现在只列 `VALIDATION_FAILED`；mock 已对齐。
+- **a1-2 方案 A**：`LabelRenderRequest.warehouseId` 必填；`renderLabels.alsoProduces` 含 ZPL；A4+ZPL 保持 400；可以删掉 warehouseId 缺省分支。
+- **a1-3**：mock 模板已照抄 `@wms3d/labels`。
+- **a1-4**：进程内锁定作为 MVP 书面接受（03 §2）；`login_lockouts` 落库排到 v1.1，本轮无 schema 变更。
+- **a1-5**：由 WS-D1 在 domain `validateLayout` 实现（CODE_DUPLICATE）；**D1 合并前保留** `plan.ts#extraIssues`，合并后删除。
+- **新任务（来自 ws-a2-1 #2）**：在 `lib/auth.ts` 的 `AuthContext` 加 `exp?: number`（JWT exp，秒），由 verifier 填充，供 SSE 关流使用。
+- 联合验收 **#5** 已在 main 通过：`apps/api/src/test/joint-5.test.ts`（Lead 维护）。

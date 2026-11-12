@@ -2,7 +2,7 @@
   "openapi": "3.1.0",
   "info": {
     "title": "wms3d API",
-    "version": "1.1.0",
+    "version": "1.2.0",
     "description": "contract-v1（冻结）。源：packages/contracts（Zod 4）。"
   },
   "servers": [
@@ -361,8 +361,7 @@
         },
         "x-owner": "ws-a1",
         "x-errors": [
-          "VALIDATION_FAILED",
-          "UNAUTHENTICATED"
+          "VALIDATION_FAILED"
         ],
         "requestBody": {
           "required": true,
@@ -4704,7 +4703,7 @@
     "/api/v1/labels/render": {
       "post": {
         "operationId": "renderLabels",
-        "summary": "渲染标签 PDF / ZPL（流式，≤ 5000 张）",
+        "summary": "渲染标签 PDF / ZPL（流式，≤ 5000 张）。format=ZPL → application/vnd.zebra.zpl（实验；A4 多联模板 400）。响应头 X-Label-Count、X-Reprints-Done",
         "tags": [
           "labels"
         ],
@@ -4714,6 +4713,12 @@
             "description": "OK",
             "content": {
               "application/pdf": {
+                "schema": {
+                  "type": "string",
+                  "format": "binary"
+                }
+              },
+              "application/vnd.zebra.zpl": {
                 "schema": {
                   "type": "string",
                   "format": "binary"
@@ -6600,7 +6605,7 @@
             "$ref": "#/components/schemas/LabelKindInput"
           },
           "warehouseId": {
-            "description": "kind=LOCATION/RACK 必填",
+            "description": "v1.2（WS-A1-2）：必填（SKU 标签也带当前仓库，用于作用域、审计与补打队列归属）",
             "$ref": "#/components/schemas/IdInput"
           },
           "ids": {
@@ -6683,7 +6688,8 @@
         },
         "required": [
           "template",
-          "kind"
+          "kind",
+          "warehouseId"
         ]
       },
       "LabelTemplate": {
@@ -9184,7 +9190,8 @@
             "maximum": 9007199254740991
           },
           "hash": {
-            "type": "string"
+            "type": "string",
+            "description": "v1.2（WS-A2-1）：sha256(lines.join(\"\\n\")) 小写 hex；line = `${entity}|${id}|${updatedAt}`，entity ∈ barcode|location|sku，updatedAt 与 SyncPage 中完全相同（UTC 毫秒 ISO），按 (entity, id) 字节序升序；locations 仅本仓。客户端可用本地副本复算"
           }
         },
         "required": [

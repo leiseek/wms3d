@@ -73,7 +73,12 @@ export function buildOpenApi(): Json {
       else if (r.produces && r.produces !== 'application/json' && code === '200')
         responses[code] = {
           description: 'OK',
-          content: { [r.produces]: { schema: { type: 'string', format: 'binary' } } },
+          content: Object.fromEntries(
+            [r.produces, ...(r.alsoProduces ?? [])].map((t) => [
+              t,
+              { schema: { type: 'string', format: 'binary' } },
+            ]),
+          ),
         };
       else responses[code] = { description: code === '304' ? 'Not Modified' : 'No Content' };
     }

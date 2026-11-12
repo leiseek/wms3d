@@ -49,6 +49,8 @@ export interface RouteSpec {
     | 'text/csv'
     | 'text/event-stream'
     | 'application/octet-stream';
+  /** v1.2：同一 200 响应的其他内容类型（按请求参数选择，如 renderLabels format=ZPL） */
+  readonly alsoProduces?: readonly ('application/vnd.zebra.zpl' | 'text/plain')[];
   /** 状态码 → 响应体 schema（null = 无响应体）。错误响应统一为 Problem，不在此列出。 */
   readonly responses: Readonly<Record<number, z.ZodType | null>>;
   /** 可能返回的业务错误码（文档与 mock 用） */
