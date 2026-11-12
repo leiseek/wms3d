@@ -19,4 +19,5 @@
 | [09-testing](docs/09-testing.md) | 测试策略与演示数据 |
 | [10-dev-plan](docs/10-dev-plan.md) | 里程碑与并行工作流 |
 | [adr/](docs/adr/) | 架构决策记录 |
+| [sources](docs/sources.md) | 调研参考资料 |
 | [CHANGELOG-design](docs/CHANGELOG-design.md) | 设计版本记录 |
