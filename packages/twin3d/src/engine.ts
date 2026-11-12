@@ -290,7 +290,7 @@ export class TwinEngine {
       pos = new THREE.Vector3(cx, fitH + 2, cz + 0.01);
       target = new THREE.Vector3(cx, 0, cz);
     } else if (p === 'iso') {
-      const r = fitH * 0.95;
+      const r = fitH * 0.8;
       pos = new THREE.Vector3(cx - r * 0.45, r * 0.62, cz + r * 0.75);
       target = new THREE.Vector3(cx, 0, cz);
     } else {
@@ -883,7 +883,9 @@ export class TwinEngine {
     );
     const size = Math.max(b.max[0] - b.min[0], b.max[1] - b.min[1], b.max[2] - b.min[2]);
     const fov = THREE.MathUtils.degToRad(this.camera.fov);
-    const dist = Math.max(6, (size / 2 / Math.tan(fov / 2)) * 1.6);
+    // 竖屏（手机）按水平视角适配
+    const halfTan = Math.tan(fov / 2) * Math.min(1, this.camera.aspect);
+    const dist = Math.max(6, (size / 2 / halfTan) * 1.25);
     const dir = this.camera.position.clone().sub(this.controls.target);
     if (dir.lengthSq() < 1e-6) dir.set(0, 1, 1);
     dir.normalize();
