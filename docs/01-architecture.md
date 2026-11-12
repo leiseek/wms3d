@@ -72,7 +72,7 @@ sequenceDiagram
   participant Q as 离线队列(IndexedDB)
   participant S as API
   participant D as PostgreSQL
-  G->>M: "A-03-12-C-02"（仓位）
+  G->>M: "A03-12-C02"（仓位）
   M->>M: domain.classify() = LOCATION（本地缓存校验）
   G->>M: "6901234567890"（SKU 条码，包装×12）
   M->>M: qty=12，连续模式自动提交
@@ -106,3 +106,5 @@ sequenceDiagram
 | Android SDK（cmdline-tools、platform-tools、platforms;android-36、build-tools;36.0.0） | 已装到 `/opt/tools/android-sdk` |
 | Docker | 不可用（apt 不通）；compose 文件照写，部署验证放到目标服务器 |
 | Google Chrome | 预装（Playwright e2e / 3D 性能基准可用） |
+
+环境变量：`source /opt/tools/env.sh`（JAVA_HOME / ANDROID_HOME / PG 二进制入 PATH）。Spike：Capacitor 8 空工程 `./gradlew assembleDebug` 成功（首次需下载 Gradle 8.14.3，自动补装 build-tools 35）。
