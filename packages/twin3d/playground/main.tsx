@@ -38,6 +38,12 @@ declare global {
       setHighlight(ids: string[]): void;
       setPreset(p: CameraPreset): void;
       setColorMode(m: ColorMode): void;
+      setMaxLevel(n: number | undefined): void;
+      setModel(m: TwinModel): void;
+      setOcc(o: Occupancy | null): void;
+      occ: Occupancy | null;
+      picks: string[];
+      staleCalls: number;
     };
   }
 }
@@ -53,6 +59,12 @@ window.__twin = {
   setHighlight: () => {},
   setPreset: () => {},
   setColorMode: () => {},
+  setMaxLevel: () => {},
+  setModel: () => {},
+  setOcc: () => {},
+  occ: null,
+  picks: [],
+  staleCalls: 0,
 };
 
 const bar: React.CSSProperties = {
@@ -154,7 +166,16 @@ function App() {
     w.setHighlight = setHighlight;
     w.setPreset = setPreset;
     w.setColorMode = setMode;
+    w.setMaxLevel = setMaxLevel;
+    w.setModel = (m) => {
+      w.model = m;
+      setModel(m);
+    };
+    w.setOcc = setOcc;
   }, []);
+  useEffect(() => {
+    window.__twin!.occ = occ;
+  }, [occ]);
 
   const occupiedIds = useMemo(() => {
     if (!model || !occ) return { empty: [] as number[], used: [] as number[] };
@@ -265,14 +286,23 @@ function App() {
           force2D={qs.get('force2d') === '1'}
           autoFallback={!isBench && qs.get('fallback') !== 'off'}
           startupBenchmark={!isBench}
-          onPick={(id) => setPicked(model?.locations.code[model.locations.id.indexOf(id)] ?? id)}
-          onPickRack={(k) => setPicked(`货架 ${k}`)}
+          onPick={(id) => {
+            window.__twin!.picks.push(id);
+            setPicked(model?.locations.code[model.locations.id.indexOf(id)] ?? id);
+          }}
+          onPickRack={(k) => {
+            window.__twin!.picks.push(`rack:${k}`);
+            setPicked(`货架 ${k}`);
+          }}
           onPerf={(r) => window.__twin!.perf.push(r)}
           onModeChange={(m, reason) => {
             window.__twin!.mode = m;
             if (reason && reason !== 'forced') setMsg(`2D 降级：${reason}`);
           }}
-          onStaleOccupancy={() => void loadTwin()}
+          onStaleOccupancy={() => {
+            window.__twin!.staleCalls++;
+            if (session.current) void loadTwin();
+          }}
         />
       </div>
     </div>

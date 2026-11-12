@@ -1,0 +1,306 @@
+{
+  "at": "2026-11-12T09:48:24.608Z",
+  "renderer": "headless Chrome + SwiftShader（软件 WebGL2，无 GPU）",
+  "rows": [
+    {
+      "viewport": "desktop",
+      "tier": "bench5k",
+      "preset": "top",
+      "n": 5200,
+      "calls": 33,
+      "triangles": 95684,
+      "chunks": {
+        "near": 0,
+        "mid": 10,
+        "far": 0,
+        "culled": 0,
+        "total": 10
+      },
+      "firstFrameMs": 873,
+      "dataReadyMs": 751,
+      "frameP50Ms": 142.1,
+      "fps": 6,
+      "budget": {
+        "calls": 80,
+        "tris": 150000
+      },
+      "ok": true,
+      "wallMs": 11454
+    },
+    {
+      "viewport": "desktop",
+      "tier": "bench5k",
+      "preset": "iso",
+      "n": 5200,
+      "calls": 33,
+      "triangles": 95684,
+      "chunks": {
+        "near": 0,
+        "mid": 10,
+        "far": 0,
+        "culled": 0,
+        "total": 10
+      },
+      "firstFrameMs": 497,
+      "dataReadyMs": 244,
+      "frameP50Ms": 208.6,
+      "fps": 4,
+      "budget": {
+        "calls": 80,
+        "tris": 150000
+      },
+      "ok": true,
+      "wallMs": 15232
+    },
+    {
+      "viewport": "desktop",
+      "tier": "bench5k",
+      "preset": "aisle",
+      "n": 5200,
+      "calls": 35,
+      "triangles": 97884,
+      "chunks": {
+        "near": 4,
+        "mid": 6,
+        "far": 0,
+        "culled": 0,
+        "total": 10
+      },
+      "firstFrameMs": 537,
+      "dataReadyMs": 215,
+      "frameP50Ms": 102.3,
+      "fps": 9,
+      "budget": {
+        "calls": 80,
+        "tris": 150000
+      },
+      "ok": true,
+      "wallMs": 8486
+    },
+    {
+      "viewport": "desktop",
+      "tier": "bench20k",
+      "preset": "top",
+      "n": 20800,
+      "calls": 4,
+      "triangles": 12486,
+      "chunks": {
+        "near": 0,
+        "mid": 0,
+        "far": 40,
+        "culled": 0,
+        "total": 40
+      },
+      "firstFrameMs": 543,
+      "dataReadyMs": 277,
+      "frameP50Ms": 41.5,
+      "fps": 23,
+      "budget": {
+        "calls": 80,
+        "tris": 300000
+      },
+      "ok": true,
+      "wallMs": 4173
+    },
+    {
+      "viewport": "desktop",
+      "tier": "bench20k",
+      "preset": "iso",
+      "n": 20800,
+      "calls": 4,
+      "triangles": 12486,
+      "chunks": {
+        "near": 0,
+        "mid": 0,
+        "far": 40,
+        "culled": 0,
+        "total": 40
+      },
+      "firstFrameMs": 510,
+      "dataReadyMs": 256,
+      "frameP50Ms": 77.7,
+      "fps": 9,
+      "budget": {
+        "calls": 80,
+        "tris": 300000
+      },
+      "ok": true,
+      "wallMs": 8508
+    },
+    {
+      "viewport": "desktop",
+      "tier": "bench20k",
+      "preset": "aisle",
+      "n": 20800,
+      "calls": 34,
+      "triangles": 105046,
+      "chunks": {
+        "near": 4,
+        "mid": 6,
+        "far": 30,
+        "culled": 0,
+        "total": 40
+      },
+      "firstFrameMs": 719,
+      "dataReadyMs": 329,
+      "frameP50Ms": 42.7,
+      "fps": 9,
+      "budget": {
+        "calls": 80,
+        "tris": 300000
+      },
+      "ok": true,
+      "wallMs": 8257
+    },
+    {
+      "viewport": "phone",
+      "tier": "bench5k",
+      "preset": "top",
+      "n": 5200,
+      "calls": 33,
+      "triangles": 95684,
+      "chunks": {
+        "near": 0,
+        "mid": 10,
+        "far": 0,
+        "culled": 0,
+        "total": 10
+      },
+      "firstFrameMs": 491,
+      "dataReadyMs": 223,
+      "frameP50Ms": 121.6,
+      "fps": 8,
+      "budget": {
+        "calls": 80,
+        "tris": 150000
+      },
+      "ok": true,
+      "wallMs": 8834
+    },
+    {
+      "viewport": "phone",
+      "tier": "bench5k",
+      "preset": "iso",
+      "n": 5200,
+      "calls": 33,
+      "triangles": 95684,
+      "chunks": {
+        "near": 0,
+        "mid": 10,
+        "far": 0,
+        "culled": 0,
+        "total": 10
+      },
+      "firstFrameMs": 377,
+      "dataReadyMs": 186,
+      "frameP50Ms": 154.7,
+      "fps": 5,
+      "budget": {
+        "calls": 80,
+        "tris": 150000
+      },
+      "ok": true,
+      "wallMs": 12632
+    },
+    {
+      "viewport": "phone",
+      "tier": "bench5k",
+      "preset": "aisle",
+      "n": 5200,
+      "calls": 35,
+      "triangles": 97884,
+      "chunks": {
+        "near": 4,
+        "mid": 3,
+        "far": 0,
+        "culled": 3,
+        "total": 10
+      },
+      "firstFrameMs": 486,
+      "dataReadyMs": 195,
+      "frameP50Ms": 85.8,
+      "fps": 9,
+      "budget": {
+        "calls": 80,
+        "tris": 150000
+      },
+      "ok": true,
+      "wallMs": 7987
+    },
+    {
+      "viewport": "phone",
+      "tier": "bench20k",
+      "preset": "top",
+      "n": 20800,
+      "calls": 4,
+      "triangles": 12486,
+      "chunks": {
+        "near": 0,
+        "mid": 0,
+        "far": 40,
+        "culled": 0,
+        "total": 40
+      },
+      "firstFrameMs": 549,
+      "dataReadyMs": 311,
+      "frameP50Ms": 36.7,
+      "fps": 24,
+      "budget": {
+        "calls": 80,
+        "tris": 300000
+      },
+      "ok": true,
+      "wallMs": 4115
+    },
+    {
+      "viewport": "phone",
+      "tier": "bench20k",
+      "preset": "iso",
+      "n": 20800,
+      "calls": 4,
+      "triangles": 12486,
+      "chunks": {
+        "near": 0,
+        "mid": 0,
+        "far": 40,
+        "culled": 0,
+        "total": 40
+      },
+      "firstFrameMs": 488,
+      "dataReadyMs": 260,
+      "frameP50Ms": 59.8,
+      "fps": 15,
+      "budget": {
+        "calls": 80,
+        "tris": 300000
+      },
+      "ok": true,
+      "wallMs": 5407
+    },
+    {
+      "viewport": "phone",
+      "tier": "bench20k",
+      "preset": "aisle",
+      "n": 20800,
+      "calls": 34,
+      "triangles": 105046,
+      "chunks": {
+        "near": 4,
+        "mid": 3,
+        "far": 13,
+        "culled": 20,
+        "total": 40
+      },
+      "firstFrameMs": 572,
+      "dataReadyMs": 306,
+      "frameP50Ms": 71.9,
+      "fps": 7,
+      "budget": {
+        "calls": 80,
+        "tris": 300000
+      },
+      "ok": true,
+      "wallMs": 9938
+    }
+  ]
+}

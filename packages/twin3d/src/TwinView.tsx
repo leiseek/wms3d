@@ -246,9 +246,15 @@ export function TwinView(props: TwinViewProps) {
   useEffect(() => {
     if (engine && model) engine.setHighlight(highlight ?? [], flyOnHighlight);
   }, [engine, model, highlight, flyOnHighlight]);
+  const presetApplied = useRef(false);
+  const hasModel = !!model;
   useEffect(() => {
-    if (engine && model && cameraPreset) engine.setCameraPreset(cameraPreset);
-  }, [engine, model, cameraPreset]);
+    if (!engine || !hasModel || !cameraPreset) return;
+    // 首次直接就位（首屏不做飞行动画），之后切换机位才飞行
+    engine.setCameraPreset(cameraPreset, presetApplied.current);
+    presetApplied.current = true;
+    // 模型换版本时保持相机，不重复套用机位
+  }, [engine, hasModel, cameraPreset]);
   useEffect(() => {
     if (engine && model && (props.startupBenchmark ?? true)) engine.startBenchmark();
     // 只在引擎首次拿到模型时跑一次
