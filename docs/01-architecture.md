@@ -24,7 +24,7 @@ flowchart LR
     T[Android 平板<br/>Capacitor + 蓝牙枪 HID/SPP]
     P[Android 手机<br/>Capacitor + ML Kit 摄像头]
   end
-  subgraph Server["服务器 (docker compose)"]
+  subgraph Server["服务器（systemd 原生部署；compose 可选）"]
     C[Caddy<br/>TLS/静态资源/反代]
     API[Fastify API<br/>modules: auth, users, devices, warehouses, layout,<br/>skus, inventory, counts, labels, events, audit, dashboard]
     DB[(PostgreSQL 17)]
@@ -70,7 +70,7 @@ wms3d/
 sequenceDiagram
   participant G as 扫码枪/相机
   participant M as 移动端
-  participant Q as 离线队列(IndexedDB)
+  participant Q as 离线队列(SQLite outbox)
   participant S as API
   participant D as PostgreSQL
   G->>M: "WH1.A03-17-C02"（仓位条码载荷）
@@ -97,8 +97,9 @@ sequenceDiagram
 | 扫码提交 API p95 | ≤ 150 ms（局域网） |
 | 3D 场景数据接口 | 5,000 仓位 ≤ 300 KB gzip，≤ 300 ms |
 | 并发 | 50 台终端同时作业无死锁、无丢失更新 |
+| 占用刷新负载（v2.1，M-N3） | 20,000 仓位、50 个 3D 客户端在线、持续 2 笔交易/秒时，occupancy 计算占 API 进程 CPU < 20%（M4.5 压测验证；依赖 03 §6 服务端缓存 + 客户端节流） |
 | 可用性 | 单机 + 每日备份 + 恢复演练；RPO ≤ 24h（可选 WAL 归档到 15 min） |
-| 浏览器 | Chrome/Edge 最近 2 版；Android WebView ≥ 99（`minWebViewVersion` 门槛，实测后调整；无 GMS 机型以厂商 ROM WebView 为准） |
+| 浏览器 | Chrome/Edge 最近 2 版；Android WebView ≥ 99（`minWebViewVersion` 门槛，实测后调整）；华为 WebView 单独用 `minHuaweiWebViewVersion`（占位值，M3 实测校准）；版本不足显示独立 ES5 页 `webview-too-old.html`，并在启动时做运行时特性检测（v2.1，M-N8） |
 
 ## 8. 本机工具链（2026-11-11 实测）
 | 工具 | 状态 |

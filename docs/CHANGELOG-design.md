@@ -20,3 +20,12 @@
 - **版本锁定（npm 2026-11-12 核实）**：antd 6.7、React 19.3.x（react-konva 19.3.2 / R3F 9.8 约束）、drizzle-orm 0.45 / drizzle-kit 0.31、fastify 5.12 + type-provider-zod 7、three 0.187、Capacitor 8.6、TypeScript 6.0.x。
 - **开发计划**：M0a/M0b 拆分（R2 评审后冻结契约）；WS-D1 设计器 / WS-D2 twin3d 拆分，3D 预览在 M4.5 接入；新增 M4.5 联调（2 天）；M5 依赖 M1+M4.5，M6 依赖全部；单机多 Agent 隔离（worktree `/workspace/wms3d-wt/<ws>`、分库、端口偏移、Gradle/性能锁、合并协议）；总工期约 18 个工作日。
 - 状态：待 R2 评审。
+
+## v2.1 · 2026-11-12（R2 修复轮）
+- 处理两份 R2 评审（均为 CHANGES-REQUIRED）：38 条新问题 → **35 接受 / 3 部分采纳（M-N6、M-N9、M-N19）/ 0 拒绝**；14 条重开的 R1 条目全部关闭。详见 `reviews/R2-resolution.md`。
+- **BLOCKER N1**：定义巷道行进方向（水平 +X、竖直 +Z），side 由旋转推导，右侧 `bay = bayStart + 2·(bays−1−i)`，bay 1 与 bay 2 隔巷道正对；几何一致性校验与黄金样例更新（02、05、ADR-0008）。
+- 契约与数据：occupancy 内容哈希 ETag 并承载 isActive/effectiveMax，新 SSE `locations.changed`，服务端缓存 + 客户端节流；发布两轮匹配复用 location.id；盘点关闭单事务、无部分成功；`device_sessions` 换班代交；WAITING_STOCK 仅离线单；`transaction_timeout` 30s、同步窗口 180s、CSV 分批；兄弟 refresh token；冲正规则；advisory lock 双 int；分类器先精确匹配；自研 SSE 客户端；CORS 收紧。
+- 移动/3D/标签：相机再触发按时间、坐标 ÷ dpr；应用内键盘；真机验证改为 M6 发布门禁（需要 leo 提供平板 + 扫描枪）；华为 WebView 门槛 + ES5 错误页；紧凑槽位实例；draw call ≤ 80；70×30 窄标版面。
+- 计划与隔离：WS-A 拆为 A1/A2（n=8），`apps/api/src/db/**` 冻结后归 Lead；依赖预装 + 契约请求通道；合并队列移出 git；**M0a 在 main 开发记为一次性例外，M0b 起 Lead 在 `/workspace/wms3d-wt/lead` 开发，main 只合并**。
+- M0a 已完成（10 §M0a 完成记录），其中 R2 涉及脚手架的修复（test-db.sh、A1/A2、lead worktree、content 根包裹、WebView 门槛页）已落地。
+- **contract-v1 尚未冻结**：等待评审对 R2-resolution §5 所列条目做定向复核。

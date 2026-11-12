@@ -1,6 +1,7 @@
 # 09 · 测试策略
 
 > v2（2026-11-12）：补关键竞态必过清单、基于模型的属性测试、模板库加速、RBAC 自动矩阵、seed 走 postTransaction、坐标黄金样例、扫码/去重单测、mesh 归属单测。
+> **v2.1**（2026-11-12，R2）：竞态清单新增 12–17 项；模板库按 WS + 迁移哈希（B-N8）；移动端以 Robolectric/JVM 单测/Playwright 截图代替模拟器（M-N7）；3D draw call 预算 ≤ 80 与 LOD 分布断言（M-N14）。
 
 ## 1. 测试金字塔
 | 层 | 工具 | 范围 |
@@ -27,11 +28,18 @@
 8. **盘点提交与出库并发**：variance 与提交时刻余额一致。
 9. **跨仓 locationId 越权**：404，余额不变。
 10. 冲正重复：第二次 409 `TXN_ALREADY_REVERSED`。
-11. 刷新令牌并发：同设备 60s 内两次 refresh 不撤销 family。
+11. 刷新令牌并发：同设备 60s 内两次 refresh 都成功（第二次得到兄弟 token），不撤销 family；不同设备重用 → 撤销 family（B-N13）。
+12.（v2.1）**occupancy 乱序提交**：两笔交易以与开始顺序相反的顺序 commit，最终 occupancy 内容与 ETag 一致；停用仓位后 ETag 改变（N2）。
+13.（v2.1）**删除货架后原位重画并发布**：第二轮按 code 匹配复用原 `location.id`，库存与历史连续，登记表无冲突（B-N3）。
+14.（v2.1）**盘点关闭时余额已不足**：整个关闭回滚，任务仍为 REVIEW，返回 `COUNT_RECOUNT_REQUIRED`，无部分调整（B-N4）。
+15.（v2.1）**换班代交**：A 的离线单在 A 登出、B 登录后由 B 的令牌提交成功，`performed_by`=A、`submitted_by`=B；**伪造 performedBy**（会话区间外或其他设备）→ 403 `PERFORMER_NOT_ALLOWED`（B-N6）。
+16.（v2.1）冲正规则：REVERSAL 不可再冲正、OPERATOR 冲正 COUNT_ADJUST 被拒、冲正到停用仓位 → `LOCATION_INACTIVE`（B-N15）。
+17.（v2.1）事务超时：人为 `pg_sleep(31)` 的事务被 `transaction_timeout` 终止（B-N7）。
 - **基于模型的测试**：fast-check `commands` + 内存模型 oracle（随机 INBOUND/OUTBOUND/TRANSFER/ADJUST/REVERSAL/重放），每步比对余额，结束跑对账。
 
 ## 3. 测试数据库
-- `scripts/dev-db.sh` 启动单个 PG17 实例（端口见 10 §6），每个工作流独立数据库；集成测试先建 `wms_template`（迁移 + 角色），每个测试文件 `CREATE DATABASE t_<rand> TEMPLATE wms_template`（D41），结束删除。
+- `scripts/dev-db.sh` 启动单个 PG17 实例（端口见 10 §6），每个工作流独立数据库。
+- **模板库按 WS 与迁移哈希命名**（v2.1，B-N8；M0a 已实现 `scripts/test-db.sh`）：`wms_tpl_<ws>_<迁移目录哈希前 8 位>`，在 `flock /tmp/wms3d-tpl-<ws>.lock` 下创建（迁移 + 角色），标记 `IS_TEMPLATE`、`ALLOW_CONNECTIONS false`，旧哈希的模板自动删除；每个测试文件 `test-db.sh clone` 得到 `t_<ws>_<rand>`（D41），结束 `drop`，`gc` 清理残留。多个 WS 并发跑测试互不干扰（v2 的单一 `wms_template` 会在一个 WS 改迁移时影响其他 WS）。
 - 测试以 `wms_app` 角色连接，确保权限约束生效。
 
 ## 4. 演示数据（seed）
@@ -44,6 +52,12 @@
 
 ## 5. 扫码模拟
 dev 面板：模拟扫码输入 + 演示条码按钮，可选 HID 序列（逐字 keydown，含 60–120ms 抖动模拟 BT HID）或 SPP 事件；可打印"演示条码表"PDF。
+
+## 5.1 移动端原生测试（v2.1，M-N7）
+- **Robolectric**：构造 `KeyEvent`（含指定 `InputDevice`）调用 `ScannerInterceptLayout.dispatchKeyEventPreIme`，断言白名单设备被消费、非白名单放行、`ACTION_MULTIPLE` 处理正确。
+- **纯 JVM 单测**：`ScanKeyBuffer`（M0a 已有 4 个）、SPP 帧切分（半帧、空帧、超长、GBK）。
+- **Playwright DOM 截图**：相机模式下上半屏透明区像素检查（alpha = 0），确认没有遮挡层。
+- 真机项在 M6 现场验证（10 §M6）。
 
 ## 6. 本地 CI（`pnpm verify`；GitHub 接入后同配置）
 `install --frozen-lockfile → lint(eslint+boundaries) → typecheck → test:unit → test:contract → test:int → build → e2e smoke → (可选) android assembleDebug`。里程碑合并到 main 前必须全绿。

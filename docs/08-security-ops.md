@@ -1,6 +1,7 @@
 # 08 · 安全与运维
 
 > v2（2026-11-12）：权限矩阵补组织级 SKU 与补打；DB 角色拆分；审计同事务；证书两条路径；备份异地 + WAL；**原生 systemd 部署为本机已验证路径**，docker compose 标注未验证。
+> **v2.1**（2026-11-12，R2）：异地备份成为上线签字阻断项（D37）；advisory lock 双 int 常量（B-N16）；证书轮换指引（M-N19）。
 
 ## 1. 权限矩阵（RBAC）
 | 功能 | ADMIN | MANAGER | OPERATOR | VIEWER |
@@ -38,7 +39,7 @@
 ## 4. 可观测性
 - pino JSON 日志 + `traceId`（响应头 `X-Trace-Id`，错误体与异常单显示）。
 - `/health`、`/ready`；看板显示：对账状态、全仓待同步条数（设备心跳汇总）、备份最近成功时间。
-- 夜间任务（进程内 `node-cron`）：用 `pg_try_advisory_lock` 防重复；按仓库 `timezone` 定时：增量对账、清理过期 refresh、清理 0 余额行（> 90 天）、清理 DONE 幂等记录（`idempotency_keys` > 30 天）。
+- 夜间任务（进程内 `node-cron`）：用 `pg_try_advisory_lock(LOCK_NS.JOB, <任务号>)` 防重复（双 int 形式，常量在 `apps/api/src/db/locks.ts`，v2.1 B-N16）；按仓库 `timezone` 定时：增量对账、清理过期 refresh、清理 0 余额行（> 90 天）、清理 DONE 幂等记录（`idempotency_keys` > 30 天）。
 
 ## 5. 部署
 ### 5.1 路径 A（本机已验证 / 推荐小型现场）：原生 + systemd（D39）
@@ -55,7 +56,7 @@ systemd units: wms3d-pg.service, wms3d-api.service, wms3d-caddy.service, wms3d-b
 ```
 - `infra/native/install.sh`：创建系统用户 `wms3d`、initdb（`--locale=C.UTF-8`，与 code 列 `COLLATE "C"` 一致）、创建 `wms_owner/wms_app`、写 unit、`systemctl enable --now`。
 - 本机（box）无 systemd 用户会话时，用同一脚本的 `--foreground` 模式（`pg_ctl` + `node` + `caddy run`）做等价冒烟——M6 验收在本机执行该冒烟。
-- API 启动时执行迁移，持 `pg_advisory_lock(迁移锁)`，防多实例并发迁移（D38）；`MIGRATE_ON_START=false` 可关。
+- API 启动时执行迁移，持 `pg_advisory_lock(LOCK_NS.MIGRATION, 0)`，防多实例并发迁移（D38）；`MIGRATE_ON_START=false` 可关。
 
 ### 5.2 路径 B：docker compose（**随交付提供，但未在本机验证**）
 ```yaml
@@ -75,10 +76,17 @@ services:
 
 ## 6. 备份与恢复（D37，部分采纳）
 - 默认：每日 02:00（仓库时区）`pg_dump -Fc`，本地保留 14 日 + 8 周。
-- **异地拷贝为部署检查清单的必填项**：`rclone` 到任意 S3/MinIO/另一台主机（配置项 `BACKUP_REMOTE`）；未配置时看板常驻红色警告"备份与数据同盘"。
+- **异地拷贝为上线签字的阻断项**（v2.1，D37 附条件关闭）：`BACKUP_REMOTE` 未配置或最近一次异地拷贝失败 → 交付检查清单不能签字（`scripts/golive-check.sh` 失败），且看板常驻红色警告。做法：`rclone` 到任意 S3/MinIO/另一台主机（配置项 `BACKUP_REMOTE`）；未配置时看板常驻红色警告"备份与数据同盘"。
 - **推荐启用 WAL 归档**（`wal-g` 或 `archive_command` + rclone，RPO 15 分钟）：脚本与文档提供，需现场配置远端后开启（MVP 不强制，因为需要外部存储）。
 - 恢复演练：`scripts/restore.sh <dump>` → 临时库 → 跑全量对账 → 输出报告；RTO ≤ 1h。
 - 备份文件权限 600，可选 GPG 加密。
+
+### 6.1 证书轮换（v2.1，M-N19）
+- 内部 CA 路径下，App 只在**启动和配置时**校验 SPKI 指纹（04 §1）。轮换服务器证书时：
+  1. 推荐**沿用原私钥**重新签发（SPKI 不变，App 无感）；
+  2. 必须换钥时：先生成新密钥，发布同时含新旧两个 `pin` 的配置二维码让设备重新确认，再切换 Caddy 证书；
+  3. 更换内部 CA：先在设备上安装新 CA（用户锚点），确认后再切换。
+- "WebView 信任用户锚点"的行为本机无法测试，列入 M6 现场验证。
 
 ## 7. APK 分发
 后台"下载 App"页提供 APK；App 启动请求 `/app/version` 提示更新（不静默安装）；release 签名流程文档化，keystore 不入库。

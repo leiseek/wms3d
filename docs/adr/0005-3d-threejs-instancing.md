@@ -1,5 +1,5 @@
 # ADR-0005 · 3D：three.js + React Three Fiber，数据驱动 + InstancedMesh
-- 状态：已接受 · **v2 2026-11-12**（按 R1 M14/M15/M16/M23/M24 修订）
+- 状态：已接受 · **v2 2026-11-12**（按 R1 M14/M15/M16/M23/M24 修订） · **v2.1**（2026-11-12 按 R2 M-N4/M-N13/M-N14 补充）
 
 ## 选项
 - **three.js/R3F（选）**：生态最大，PC/移动 WebView 复用，InstancedMesh 一次 draw call 渲染数万仓位，`instanceColor` 着色、raycast 返回 instanceId。
@@ -12,3 +12,9 @@
 
 ## 后果
 + 经分块 LOD 后 2 万仓位可在中端机达到 ≥ 24 FPS（需 M4 真机基准确认）；5k 仓位 ≥ 30 FPS。− 分块增加少量 draw calls 与实现复杂度；空/有货切换需维护两套槽位。
+
+## v2.1 补充（R2）
+- **紧凑槽位**（M-N4）：有货/空两个 InstancedMesh 各自紧凑存放，`slotOf/locOf` + swap-remove，`mesh.count` = 实际数量；层过滤同理；取代"缩放 0"。
+- **FrameFar** 为每块一个 InstancedMesh；拾取遵从 LOD 与层过滤（M-N13）。
+- **预算** draw calls ≤ 80，并断言各机位期望 LOD 分布（M-N14）。
+- occupancy 承载 `isActive/effectiveMax`，ETag 为内容哈希；客户端拉取最小间隔 2s/1s（N2/M-N3）。

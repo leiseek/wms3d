@@ -1,5 +1,5 @@
 # ADR-0007 · 移动端离线：SQLite outbox + 客户端幂等键 + 服务端裁决（v2）
-- 状态：已接受 · **v2 2026-11-12**（按 R1 D6/D29/M5/M6/M7/M28 修订）
+- 状态：已接受 · **v2 2026-11-12**（按 R1 D6/D29/M5/M6/M7/M28 修订） · **v2.1**（2026-11-12 按 R2 B-N5/B-N6/M-N9/B-N12/B-N14 补充）
 
 ## 决策
 - outbox 存 **SQLite**（`@capacitor-community/sqlite`，App 私有目录），不放 IndexedDB（WebView 存储可被回收/清缓存）；主数据缓存仍用 Dexie；提供"导出待传队列"应急。
@@ -12,3 +12,9 @@
 
 ## 后果
 + 不丢单、不重复、跨设备乱序不产生大量假异常单。− 引入 SQLite 插件依赖；离线出库仍可能最终被拒（有闭环）。
+
+## v2.1 补充（R2）
+- `WAITING_STOCK` **只适用于 `createdOffline=true`** 的单据；在线单据库存不足立即打断（B-N5）。
+- **换班代交**取代"原操作员重登"：A 可带着待传单据登出，B 登录后用 B 的令牌继续发送，服务端按 `device_sessions` 校验 performedBy（B-N6/M-N9）。不采纳"设备保存每个用户的 refresh token"。
+- `BLOCKED_AUTH` 仅在设备上无有效登录或当前用户需改密（`PASSWORD_CHANGE_REQUIRED`）时出现（B-N14）。
+- 登出不再要求 outbox 为空；盘点提交只阻塞涉及该仓位的待传单据（B-N12）。

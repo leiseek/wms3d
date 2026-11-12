@@ -1,5 +1,5 @@
 # ADR-0003 · 库存：不可变流水 + 物化余额 + 幂等键 + 全局锁顺序（v2）
-- 状态：已接受 · v1 2026-11-11 · **v2 2026-11-12**（按 R1 D1/D2/D3/D4/D5/D7/D8/D9/D11 修订）
+- 状态：已接受 · v1 2026-11-11 · **v2 2026-11-12**（按 R1 D1/D2/D3/D4/D5/D7/D8/D9/D11 修订） · **v2.1**（2026-11-12 按 R2 B-N4/B-N7/B-N15/B-N16 补充）
 
 ## 决策
 1. **台账**：`stock_movements` 只追加（行级 UPDATE/DELETE 触发器 + 语句级 TRUNCATE 触发器），`wms_app` 运行时角色对其仅 INSERT/SELECT 且非属主；更正 = `REVERSAL` 交易（`reverses_txn_id unique`）。
@@ -17,3 +17,10 @@
 
 ## 依据
 sources [L1][L2][L3][L4]；PostgreSQL `INSERT ... ON CONFLICT` 文档语义。
+
+## v2.1 补充（R2）
+- **盘点关闭单事务**（B-N4）：CAS → COUNT_ADJUST → 回写 `closed_txn_id` 同一事务；任一行扣减不足则整单回滚、任务留在 REVIEW、返回 `COUNT_RECOUNT_REQUIRED`。删除 v2 的"行级部分成功"。
+- **冲正规则**（B-N15）：REVERSAL 不可再冲正；COUNT_ADJUST 仅 MANAGER+；冲正到停用仓位 → `LOCATION_INACTIVE`。
+- **事务超时**（B-N7）：`wms_app` `transaction_timeout=30s`，发布事务 `SET LOCAL 120s`。
+- **advisory lock**（B-N16）：统一双 int 形式，常量集中于 `apps/api/src/db/locks.ts`。
+- **换班代交**（B-N6）：`performed_by` 可与 `submitted_by` 不同，由 `device_sessions` 校验（02 §6.6）。

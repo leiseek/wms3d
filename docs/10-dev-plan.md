@@ -1,12 +1,14 @@
 # 10 · 开发计划
 
 > v2（2026-11-12）：M0 拆为 M0a/M0b；设计器（WS-D1）与 twin3d（WS-D2）拆开，3D 预览在 twin3d 之后接线；新增 2 天联调里程碑 M4.5；修正 M5/M6 依赖；新增"单机多 Agent 隔离"与原生部署路径。总工期约 18 个工作日。
+> **v2.1**（2026-11-12，R2）：WS-A 拆为 WS-A1（主数据/布局/标签端点）与 WS-A2（库存/盘点/同步/孪生），n=8（B-N11）；`apps/api/src/db/**` 冻结后归 Lead；依赖预装与契约请求通道（B-N9）；合并队列移出 git、M0b 起 Lead 在 worktree 开发、main 只做合并（B-N10）；M3 真机验证改为 M6 发布门禁（M-N7）；M0a 完成记录。
 
 ## 1. 组织与所有权
 | 角色/WS | 名称 | 独占目录（写权限） |
 |---|---|---|
-| Lead（Noa） | 契约、集成、评审、合并 | `packages/contracts/**`、`packages/api-client/**`（随契约生成）、`packages/domain/src/index.ts`（公共签名）、根配置、`pnpm-lock.yaml`、`docs/**` |
-| WS-A | 后端 API | `apps/api/**`、`packages/domain/src/inventory/**`（planMovements、classifyScan 实现） |
+| Lead（Noa） | 契约、集成、评审、合并 | `packages/contracts/**`、`packages/api-client/**`（随契约生成）、`packages/domain/src/index.ts`（公共签名）、根配置、`pnpm-lock.yaml`、`docs/**`（`docs/contract-requests/**` 除外）、**`apps/api/src/db/**`**（schema、迁移、`locks.ts`；契约冻结后归 Lead，v2.1 B-N11） |
+| WS-A1 | 后端：主数据与布局 | `apps/api/src/{app.ts,main.ts,plugins,lib}/**`、`apps/api/src/modules/{auth,users,devices,warehouses,layout,skus,labels}/**`、`packages/domain/src/scan/**`（classifyScan 实现） |
+| WS-A2 | 后端：库存与运行时 | `apps/api/src/modules/{inventory,counts,sync,twin,events,audit,jobs,dashboard}/**`、`packages/domain/src/inventory/**`（planMovements） |
 | WS-B | PC 后台（除设计器） | `apps/admin/**`（不含 `src/features/layout-designer/**`） |
 | WS-C | 移动端 & 原生 | `apps/mobile/**`（含 `android/` MainActivity pre-IME Hook）、`native/**`、`packages/scanner/**`、`packages/ui/**` |
 | WS-D1 | 布局设计器 | `apps/admin/src/features/layout-designer/**`、`packages/domain/src/layout/**`（expandLayout、validateLayout、geometry、编码生成） |
@@ -14,8 +16,9 @@
 | WS-E | 标签 | `packages/labels/**` |
 | WS-F | QA & DevOps | `infra/**`、`scripts/**`、`e2e/**` |
 - domain 算法实现下放给 WS-D1/WS-A，Lead 只定签名、黄金样例与评审（D44）。
-- 契约变更：WS 提交 `docs/contract-requests/<ws>-<n>.md`；Lead **每天 2 次批处理**（约 11:00、17:00 PT）；等待期间 WS 在本包内用本地 shim，合并后删除。
+- 契约变更：WS 提交 `docs/contract-requests/<ws>-<n>.md`（**任何 WS 都可写此目录**）；Lead **每天 2 次批处理**（约 11:00、17:00 PT）；等待期间 WS 在本包内用本地 shim，合并后删除。
 - lockfile 只由 Lead 在合并时重建（v1 中"WS-F 统一合并"的说法删除，D45）。
+- **依赖（v2.1，B-N9）**：M0b 一次性预装所有预期依赖（Drizzle、zod、konva、three/R3F、bwip-js/pdfkit、Dexie、SQLite 插件、eventsource-parser 等）到 lockfile；之后新增依赖走契约请求通道，Lead **当天**合并 `chore(deps)`；等待期间 WS 可在本地 `pnpm install`（非 frozen）试用，但**不得提交 lockfile 或 package.json 依赖变更**（check-ownership 拦截）。
 - DoD：代码 + 测试 + typecheck + lint；新 API 在 OpenAPI；中文文案走 i18n；文档更新；演示脚本可复现。
 
 ## 2. 里程碑总览
@@ -48,8 +51,9 @@ gantt
 3. `scripts/wt.sh <ws>`：创建 git worktree + 分配端口/数据库 + 写 `.env.local`（§6）。
 4. admin/mobile Vite 外壳；Capacitor android 工程 `assembleDebug` 冒烟（含 pre-IME Hook 骨架、network_security_config、Manifest 蓝牙权限、edge-to-edge insets、`minWebViewVersion`）。
 5. **Docker 静态二进制 spike**（`download.docker.com/linux/static`）：成功则 compose 升级为可验证；失败记录原因。
-验收：`pnpm verify` 空跑全绿；debug APK 生成；`wt.sh ws-a` 后可独立 `pnpm dev`。
+验收：`pnpm verify` 空跑全绿；debug APK 生成；`wt.sh create ws-a1` 后可独立 `pnpm dev:api`。
 **D0a**：外壳 + APK。
+**完成记录（2026-11-11/12）**：全部验收通过——`pnpm verify` 全绿；APK `/workspace/wms3d-artifacts/wms3d-debug-latest.apk`（4.1MB）；Docker spike **部分成功**（dockerd 仅在 `--iptables=false --bridge=none` 下运行，host/none 网络可用，compose 可起 postgres:17；bridge 网络不可用，故 compose 仍标"未完整验证"，见 `spikes/m0a-docker.md`）；`wt.sh create ws-a1` → API 4100 + 库 `wms_ws_a1` `/ready` 通过。**例外说明（B-N10）**：M0a 在 main 上直接开发，属于一次性、无并行 WS 时期的书面例外；从 M0b 起 Lead 也在 worktree 开发（见 §6.1）。
 
 ### M0b · 契约冻结（3 天；Lead 主导，WS-A/WS-D1 协作）
 前置：R2 评审通过（v2 设计）。
@@ -77,10 +81,10 @@ Konva 画布（02 §2 坐标约定）、货架放置/拖动/吸附/90° 旋转�
 验收：30 分钟设计 200 仓位并发布；黄金样例在 2D 中渲染一致。
 
 ### M3 · 移动端 + 原生扫码（6 天；WS-C）
-第 1 天 spike：相机透明挖洞布局、pre-IME 拦截（模拟器 + 外接键盘事件；真机项待现场）。
+第 1 天（v2.1，M-N7：本机无 KVM/模拟器/真机，取消模拟器 spike）：Robolectric 测 pre-IME 拦截、JVM 单测 SPP 帧切分、Playwright 截图测相机透明区；debug 包"软键盘视为白名单设备"开关。
 外壳（服务器配置确认/指纹校验、登录、仓库切换、自适应、状态栏、insets）；`packages/scanner`（来源去重表、JS HID 阈值）；`native/capacitor-scanner`（HidWedgeBuffer + pre-IME、SPP 权限/重连/帧切分、feedback、verifyServerPin、showSoftInput、Keystore 加密）；相机（瞄准框 + 双帧 + 离框再触发 + torch）；作业页（上架/出库/移库/查询，倒计时自动提交、撤销、打断式拒绝、意外码表）；**SQLite outbox** + 处理矩阵 + 心跳 + 主数据分页同步 + 导出队列；异常单页。
 验收：web mock e2e 全过；离线/令牌过期 e2e；Kotlin 单测；APK 可装。
-**D3**：模拟器录屏连续上架。
+**D3**：web mock 连续上架演示视频 + 原生/组件测试报告（真机演示移到 M6 现场验证）。
 
 ### M4 · twin3d（5 天；WS-D2）
 第 2 天先交付 **twin3d v0**（静态：地面 + 分块框架 + 仓位方块，按黄金样例对齐），供 WS-D1/WS-B/WS-C 提前试接。之后：空/有货槽位切换、着色模式与图例、解析式拾取、相机预设与飞行、按块 LOD（滞回）+ 视锥裁剪、高亮/光柱、troika 文本、层过滤、WebGL2 检测与 2D 降级、上下文丢失重建、启动基准；性能基准脚本（5k/20k，3 机位）。
@@ -100,12 +104,14 @@ Konva 画布（02 §2 坐标约定）、货架放置/拖动/吸附/90° 旋转�
 ### M6 · 加固与交付（3 天；WS-F 主导，全员修复）
 依赖全部前序里程碑。全量 e2e/性能/属性测试；安全清单（OWASP ASVS L1、依赖审计）；`infra/native/install.sh`（systemd 单元 + `--foreground` 模式）**在本机冒烟验证**；compose 文件交付并标注"未验证"（除非 M0a spike 成功）；备份/恢复演练；release APK 流程；用户手册（建仓、贴标、扫码枪配置卡、证书两条路径、作业、盘点）与运维手册；`v0.1.0` tag。
 验收：00 文档成功标准逐条打勾；交付报告如实列出真机未验证项。
+**发布门禁（v2.1，M-N7）**：真机现场验证 + 30 分钟现场验收脚本（HID 枪在中文输入法焦点下扫码 50 次零吞字、SPP 休眠唤醒首枪、相机密集标签误读、离线 10 单后恢复同步、换班代交、华为/无 GMS 机型启动与 WebView 门槛、用户锚点证书、3D 帧率）；HID 失败的兜底：切 SPP 模式或作业页无焦点模式。**依赖**：需要 leo 提供 1 台 Android 平板 + 1 把支持 HID/SPP 的蓝牙扫描枪（M3 开始前到位最好，最迟 M6）。
 
 ## 4. 并行矩阵
 | | M0a | M0b | M1 | M2 | M2D | M3 | M4 | M4.5 | M5 | M6 |
 |---|---|---|---|---|---|---|---|---|---|---|
 | Lead | ● | ● | 评审 | 评审 | 评审 | 评审 | 评审 | ● | 评审 | ● |
-| WS-A | – | 协作 | ● | 标签端点 | – | – | twin 端点 | ● | ● | 修复 |
+| WS-A1 | – | 协作 | ●（认证/主数据/布局） | 标签端点 | – | – | – | ● | 审计页接口 | 修复 |
+| WS-A2 | – | 协作 | ●（库存/同步） | – | – | – | twin/occupancy/SSE | ● | ●（盘点） | 修复 |
 | WS-B | – | – | – | ● | – | – | – | ● | ● | 修复 |
 | WS-C | – | – | – | – | – | ● | – | ● | ● | 修复 |
 | WS-D1 | – | 协作 | – | – | ● | – | – | ●（3D 预览） | – | 修复 |
@@ -125,18 +131,19 @@ Konva 画布（02 §2 坐标约定）、货架放置/拖动/吸附/90° 旋转�
 | R7 | 本机无 Docker | 原生 systemd 路径为已验证交付；compose 标注未验证；M0a spike |
 | R8 | 依赖版本漂移 | 锁定版本（01 §1）；不追 RC/TS 7 |
 | R9 | 多 Agent 冲突与资源争用 | §6 隔离方案 |
-| R10 | 无真机 | Kotlin 单测 + 模拟器；真机项单列"待现场验证" |
+| R10 | 无真机/模拟器 | Robolectric + JVM 单测 + Playwright；真机项列入 M6 发布门禁；请 leo 提供平板 + 扫描枪 |
 
 ## 6. 单机多 Agent 隔离（D45）
 所有 SubAgent 共用这一台机器（同一文件系统）；隔离靠目录、数据库、端口和锁，不靠机器。
 ### 6.1 git worktree
-- 主仓 `/workspace/wms3d`（分支 `main`，只有 Lead 在此合并，不在此开发）。
-- 每个 WS 一个 worktree：`/workspace/wms3d-wt/<ws>`（`ws-a`、`ws-b`、`ws-c`、`ws-d1`、`ws-d2`、`ws-e`、`ws-f`），分支 `ws/<ws>/<milestone>-<task>`。由 `scripts/wt.sh <ws> <branch>` 创建：`git worktree add /workspace/wms3d-wt/<ws> -b <branch> main`。
+- 主仓 `/workspace/wms3d`（分支 `main`）**只做合并**，任何人（含 Lead）不在此开发（v2.1 B-N10；M0a 为书面一次性例外）。
+- Lead 的开发 worktree：`/workspace/wms3d-wt/lead`，分支 `lead/<milestone>-<task>`（`scripts/wt.sh create lead lead/m0b-contracts`，已创建）。
+- 每个 WS 一个 worktree：`/workspace/wms3d-wt/<ws>`（`ws-a1`、`ws-a2`、`ws-b`、`ws-c`、`ws-d1`、`ws-d2`、`ws-e`、`ws-f`），分支 `ws/<ws>/<milestone>-<task>`。由 `scripts/wt.sh create <ws> [branch]` 创建：`git worktree add /workspace/wms3d-wt/<ws> -b <branch> main`。
 - **禁止**在任何 worktree 里 `git checkout` 别的 WS 分支；禁止修改独占目录以外的文件（`pnpm verify` 中的 `check-ownership` 脚本按 §1 表检查 diff）。
 ### 6.2 数据库
 - 一个共享 PG17 实例（端口 55432，数据目录 `/workspace/.wms3d-pg`，由 WS-F 的 dev-db.sh 管理）。
-- 每个 WS 独立数据库：`wms_<ws>`（如 `wms_ws_a`）；测试库 `t_<ws>_<rand>` 由 `wms_template` 克隆；**禁止**跨库操作，禁止 `DROP DATABASE` 非本 WS 前缀的库。
-### 6.3 端口（n = WS 序号：Lead 0、A 1、B 2、C 3、D1 4、D2 5、E 6、F 7）
+- 每个 WS 独立数据库：`wms_<ws>`（如 `wms_ws_a1`）；测试库 `t_<ws>_<rand>` 由本 WS 的模板库 `wms_tpl_<ws>_<迁移哈希>` 克隆（`scripts/test-db.sh`，09 §3）；**禁止**跨库操作，禁止 `DROP DATABASE` 非本 WS 前缀的库。
+### 6.3 端口（n = WS 序号：Lead 0、A1 1、B 2、C 3、D1 4、D2 5、E 6、F 7、A2 8）
 | 服务 | 端口 |
 |---|---|
 | API | 4000 + 100n |
@@ -151,7 +158,7 @@ Konva 画布（02 §2 坐标约定）、货架放置/拖动/吸附/90° 旋转�
 - 环境：`source /opt/tools/env.sh`。
 ### 6.5 合并协议（到 main）
 1. WS 在 worktree 内：`git fetch`（本地）→ `git rebase main` → `pnpm install --frozen-lockfile` → `pnpm verify`（含 check-ownership）。
-2. 提交合并请求：在 `docs/merge-queue.md` 追加一行（分支、提交、自测结果、是否改依赖）。
+2. 提交合并请求（v2.1，B-N10：队列移出 git，避免 WS 改 `docs/` 违反所有权）：写文件 `/workspace/.wms3d-queue/<UTC时间戳>-<ws>.json`（`{branch, commit, verify: "pass", depsChanged, notes}`）；Lead 按文件名顺序处理，处理完移到 `done/`。
 3. Lead 在主仓按队列顺序：`git merge --no-ff <branch>`；若 WS 新增依赖，Lead 重建 lockfile 并单独提交 `chore(deps)`；在 main 上再跑 `pnpm verify`，失败立即 `git revert -m 1` 并通知该 WS。
 4. 契约变更只由 Lead 提交；合并后打 `contract-vN` tag，各 WS rebase。
 5. 每个里程碑结束：main 打 tag `m<x>-done`，更新本文档与 CHANGELOG。
