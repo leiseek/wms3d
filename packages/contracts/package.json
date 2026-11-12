@@ -1,0 +1,14 @@
+{
+  "name": "@wms3d/contracts",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "description": "Zod contracts (frozen in M0b, after R2)",
+  "exports": {
+    ".": "./src/index.ts"
+  },
+  "scripts": {
+    "build": "tsc -p tsconfig.json",
+    "typecheck": "tsc -p tsconfig.json --noEmit"
+  }
+}

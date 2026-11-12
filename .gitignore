@@ -12,3 +12,11 @@ android/.gradle/
 .idea/
 .DS_Store
 .pgdata/
+.env.local
+*.tsbuildinfo
+apps/mobile/android/app/build/
+apps/mobile/android/build/
+apps/mobile/android/.gradle/
+apps/mobile/android/local.properties
+apps/mobile/android/app/src/main/assets/public/
+apps/mobile/android/capacitor-cordova-android-plugins/

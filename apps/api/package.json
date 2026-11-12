@@ -1,0 +1,19 @@
+{
+  "name": "@wms3d/api",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "node --watch --experimental-strip-types src/main.ts",
+    "start": "node dist/main.js",
+    "build": "tsc -p tsconfig.json",
+    "typecheck": "tsc -p tsconfig.json --noEmit"
+  },
+  "dependencies": {
+    "fastify": "~5.12.8",
+    "pg": "~8.23.1"
+  },
+  "devDependencies": {
+    "@types/pg": "^8.15.0"
+  }
+}

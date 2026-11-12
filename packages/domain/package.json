@@ -1,0 +1,14 @@
+{
+  "name": "@wms3d/domain",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "description": "Pure domain logic: geometry, location codes, classifyScan, planMovements",
+  "exports": {
+    ".": "./src/index.ts"
+  },
+  "scripts": {
+    "build": "tsc -p tsconfig.json",
+    "typecheck": "tsc -p tsconfig.json --noEmit"
+  }
+}
