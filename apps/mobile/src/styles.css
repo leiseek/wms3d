@@ -533,28 +533,31 @@ html.barcode-scanner-active .camera-area {
   font-size: 16px;
   word-break: break-all;
 }
-.twin-banner {
-  background: #e3f2fd;
-  border-left: 4px solid var(--primary);
-  padding: 6px 10px;
-  margin-bottom: 8px;
+.twin-page {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  padding: 8px;
+  gap: 6px;
 }
-.twin-svg {
-  width: 100%;
-  height: auto;
+.twin-bar {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.twin-actions {
+  margin-left: auto;
+  display: flex;
+  gap: 6px;
+}
+.twin-view {
+  position: relative;
+  flex: 1;
+  min-height: 320px;
+  border-radius: 10px;
+  overflow: hidden;
   background: #fff;
-  border-radius: 8px;
-}
-.twin-svg text {
-  fill: var(--muted);
-}
-.bay {
-  fill: #cfd8dc;
-}
-.bay-hi {
-  fill: #ff6f00;
-  stroke: #e65100;
-  stroke-width: 2;
+  touch-action: none;
 }
 .menu {
   display: grid;
