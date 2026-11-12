@@ -1,5 +1,6 @@
 #!/usr/bin/env bash
 # 为工作流创建隔离的 git worktree + 数据库 + 端口（docs/10-dev-plan.md §6，docs/dev-setup.md）。
+# v2.1（R2 N10）：主仓 /workspace/wms3d 只做合并；Lead 自己的开发也在 worktree（wt.sh create lead lead/m0b-...）。
 # 用法：
 #   wt.sh create <ws> [branch] [--no-install]   例：wt.sh create ws-a ws/ws-a/m1-auth
 #   wt.sh info <ws>      显示端口/库/路径
@@ -15,8 +16,7 @@ source "$DIR/ws-config.sh"
 
 need_ws() {
   local ws="${1:?缺少工作流名，可选：${WMS_WORKSTREAMS[*]}}"
-  [ "$ws" = lead ] && { echo "lead 在主仓 $MAIN_REPO 工作，不创建 worktree" >&2; exit 2; }
-  ws_index "$ws" >/dev/null || { echo "未知工作流：$ws（可选：${WMS_WORKSTREAMS[*]:1}）" >&2; exit 2; }
+  ws_index "$ws" >/dev/null || { echo "未知工作流：$ws（可选：${WMS_WORKSTREAMS[*]}）" >&2; exit 2; }
 }
 
 info() {

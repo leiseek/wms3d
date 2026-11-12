@@ -4,7 +4,27 @@
 import { execSync } from 'node:child_process';
 
 const OWNERS = {
-  'ws-a': ['apps/api/', 'packages/domain/src/inventory/'],
+  // v2.1（R2 N11）：apps/api/src/db/**（schema、迁移、locks.ts）在 M0b 冻结后归 Lead
+  'ws-a1': [
+    'apps/api/src/modules/auth/',
+    'apps/api/src/modules/users/',
+    'apps/api/src/modules/devices/',
+    'apps/api/src/modules/warehouses/',
+    'apps/api/src/modules/layout/',
+    'apps/api/src/modules/skus/',
+    'apps/api/src/modules/labels/',
+  ],
+  'ws-a2': [
+    'apps/api/src/modules/inventory/',
+    'apps/api/src/modules/counts/',
+    'apps/api/src/modules/sync/',
+    'apps/api/src/modules/twin/',
+    'apps/api/src/modules/events/',
+    'apps/api/src/modules/audit/',
+    'apps/api/src/modules/jobs/',
+    'apps/api/src/modules/dashboard/',
+    'packages/domain/src/inventory/',
+  ],
   'ws-b': ['apps/admin/'],
   'ws-c': ['apps/mobile/', 'native/', 'packages/scanner/', 'packages/ui/'],
   'ws-d1': ['apps/admin/src/features/layout-designer/', 'packages/domain/src/layout/'],
@@ -13,7 +33,8 @@ const OWNERS = {
   'ws-f': ['infra/', 'scripts/', 'e2e/'],
 };
 // WS 可在自己包内声明依赖（package.json），lockfile 由 Lead 重建；契约请求文件任何 WS 可新增。
-const SHARED_OK = ['docs/contract-requests/', 'docs/merge-queue.md'];
+// 合并队列在 git 之外（/workspace/.wms3d-queue/），见 10 §6.5。
+const SHARED_OK = ['docs/contract-requests/'];
 const EXCLUDE = { 'ws-b': ['apps/admin/src/features/layout-designer/'] };
 
 const ws = process.env.WMS_WS;
