@@ -38,3 +38,6 @@
 - 移动：errorPath 页两种文案；`index.html` 内联 ES5 检测；`wrapContentRoot` 失败记录诊断；ScanKeyBuffer 溢出丢弃到终止符。
 - **M0b 交付**（10 §M0b 完成记录）：contracts（75 个端点 / 63 路径、Zod + OpenAPI）、DB schema 与迁移（0000 + 0001 约束/触发器/视图/授权）、黄金样例与测试、演示数据、契约驱动 mock（MSW + Fastify，含 SSE）、API 外壳（type-provider-zod、swagger、作用域守卫、CORS、problem+json、健康检查）、api-client；`docs/workstreams/*` 8 份工作流简报。
 - 状态：**契约冻结（git tag `contract-v1`）**；之后的契约变更走 `docs/contract-requests/` 并按 contract-v1.x 递增记录。
+
+## contract-v1.1 · 2026-11-12（PT）
+- 增量（向后兼容）：`@wms3d/contracts` 导出 `LabelKind`、`LabelTemplate` 类型（WS-E-1）；`CONTRACT_VERSION` 1.1.0。无 schema、端点、数据库变化。

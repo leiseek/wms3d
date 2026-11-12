@@ -7,6 +7,7 @@ import type {
   Routes,
   WmsEvent,
 } from '@wms3d/contracts';
+import { CONTRACT_VERSION } from '@wms3d/contracts';
 import { classifyScan, compilePattern, expandLayout, validateLayout } from '@wms3d/domain';
 import {
   balanceKey,
@@ -385,7 +386,7 @@ function issueSession(
 
 export const handlers: Handlers = {
   // ---------- 运维 ----------
-  health: () => ({ status: 'ok', service: 'wms3d-mock', contractVersion: '1.0.0' }),
+  health: () => ({ status: 'ok', service: 'wms3d-mock', contractVersion: CONTRACT_VERSION }),
   ready: () => ({ status: 'ready', database: 'mock' }),
   appVersion: () => ({
     latest: '0.1.0',
