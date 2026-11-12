@@ -107,23 +107,24 @@ export function SkuImportWizard(props: { open: boolean; onClose(): void; onDone(
             </Typography.Text>
             。同一 SKU 多个条码请写多行；按 code 更新已存在的 SKU；最多 5 万行。
           </Typography.Paragraph>
-          <Space direction="vertical" style={{ width: '100%' }}>
+          <Space orientation="vertical" style={{ width: '100%' }}>
             <Button onClick={() => downloadText(SKU_CSV_TEMPLATE, 'sku-import-template.csv')}>
               下载模板
             </Button>
-            <Upload.Dragger
-              accept=".csv,text/csv"
-              maxCount={1}
-              showUploadList={false}
-              disabled={busy}
-              beforeUpload={(f) => {
-                void onFile(f);
-                return false;
-              }}
-              data-testid="sku-import-upload"
-            >
-              <p style={{ padding: 24 }}>{busy ? '正在预检…' : '点击或拖拽 CSV 文件到此处'}</p>
-            </Upload.Dragger>
+            <div data-testid="sku-import-upload">
+              <Upload.Dragger
+                accept=".csv,text/csv"
+                maxCount={1}
+                showUploadList={false}
+                disabled={busy}
+                beforeUpload={(f) => {
+                  void onFile(f);
+                  return false;
+                }}
+              >
+                <p style={{ padding: 24 }}>{busy ? '正在预检…' : '点击或拖拽 CSV 文件到此处'}</p>
+              </Upload.Dragger>
+            </div>
           </Space>
         </>
       )}

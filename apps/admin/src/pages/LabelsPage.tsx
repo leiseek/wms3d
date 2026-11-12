@@ -497,7 +497,7 @@ export default function LabelsPage() {
                 onChange={(e) => setTemplate(e.target.value as LabelTemplateKey)}
                 data-testid="label-templates"
               >
-                <Space direction="vertical">
+                <Space orientation="vertical">
                   {avail.map((t) => (
                     <Radio key={t.key} value={t.key}>
                       <b>{t.name}</b>{' '}
