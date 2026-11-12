@@ -6,6 +6,12 @@ import { execSync } from 'node:child_process';
 const OWNERS = {
   // v2.1（R2 N11）：apps/api/src/db/**（schema、迁移、locks.ts）在 M0b 冻结后归 Lead
   'ws-a1': [
+    'apps/api/src/app.ts',
+    'apps/api/src/app.test.ts',
+    'apps/api/src/main.ts',
+    'apps/api/src/plugins/',
+    'apps/api/src/lib/',
+    'packages/domain/src/scan/',
     'apps/api/src/modules/auth/',
     'apps/api/src/modules/users/',
     'apps/api/src/modules/devices/',
@@ -32,7 +38,8 @@ const OWNERS = {
   'ws-e': ['packages/labels/'],
   'ws-f': ['infra/', 'scripts/', 'e2e/'],
 };
-// WS 可在自己包内声明依赖（package.json），lockfile 由 Lead 重建；契约请求文件任何 WS 可新增。
+// v2.1（R2 B-N9）：依赖变更（任何 package.json / lockfile）只能由 Lead 合并，WS 走契约请求通道；
+// 契约请求文件任何 WS 可新增。
 // 合并队列在 git 之外（/workspace/.wms3d-queue/），见 10 §6.5。
 const SHARED_OK = ['docs/contract-requests/'];
 const EXCLUDE = { 'ws-b': ['apps/admin/src/features/layout-designer/'] };
@@ -52,6 +59,7 @@ const files = execSync(`git diff --name-only ${base}...HEAD`, { encoding: 'utf8'
   .split('\n')
   .filter(Boolean);
 const bad = files.filter((f) => {
+  if (f === 'pnpm-lock.yaml' || f.endsWith('/package.json') || f === 'package.json') return true;
   if (SHARED_OK.some((p) => f.startsWith(p))) return false;
   if ((EXCLUDE[ws] ?? []).some((p) => f.startsWith(p))) return true;
   return !owned.some((p) => f.startsWith(p));
