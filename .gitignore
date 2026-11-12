@@ -1,0 +1,14 @@
+node_modules/
+dist/
+build/
+.turbo/
+coverage/
+*.log
+.env
+.env.*
+!.env.example
+android/app/build/
+android/.gradle/
+.idea/
+.DS_Store
+.pgdata/
