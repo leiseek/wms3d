@@ -7,12 +7,15 @@ function trackErrors(page: Page) {
   const errors: string[] = [];
   page.on('pageerror', (e) => errors.push(`pageerror: ${e.message}`));
   page.on('console', (m) => {
-    if (m.type() === 'error' && !/WebGL|GPU|swiftshader|Failed to load resource/i.test(m.text()))
+    if (
+      (m.type() === 'error' || m.type() === 'warning') &&
+      !/WebGL|GPU|swiftshader|Failed to load resource|GL Driver|React DevTools/i.test(m.text())
+    )
       errors.push(m.text());
   });
-  // HTTP 失败单独记录（启动时无 cookie 的 /auth/refresh 401 属预期）
+  // HTTP 失败单独记录（预期：启动时无 cookie 的 /auth/refresh 401；设计器探测草稿不存在的 404）
   page.on('response', (r) => {
-    if (r.status() >= 400 && !/\/auth\/refresh|favicon/.test(r.url()))
+    if (r.status() >= 400 && !/\/auth\/refresh|favicon|\/layout\?version=draft/.test(r.url()))
       errors.push(`HTTP ${r.status()} ${r.request().method()} ${r.url()}`);
   });
   return errors;
@@ -56,6 +59,7 @@ test('所有页面可打开且无控制台错误（admin）', async ({ page }) =
 
 test('截图：看板、SKU 列表、标签预览、库存查询 + 3D 定位', async ({ page }) => {
   test.setTimeout(120_000);
+  const errors = trackErrors(page);
   await loginToDashboard(page, 'admin');
   await page.waitForLoadState('networkidle');
   await page.screenshot({ path: `${SHOTS}/01-dashboard.png`, fullPage: true });
@@ -94,4 +98,5 @@ test('截图：看板、SKU 列表、标签预览、库存查询 + 3D 定位', a
   await expect(page.getByTestId('twin-sse')).toHaveText('实时', { timeout: 15_000 });
   await page.waitForTimeout(4000);
   await page.screenshot({ path: `${SHOTS}/06-twin-live-locate.png` });
+  expect(errors).toEqual([]);
 });

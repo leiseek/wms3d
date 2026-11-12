@@ -204,9 +204,9 @@ export function SkuImportWizard(props: { open: boolean; onClose(): void; onDone(
           <Typography.Text type="secondary">前 5 行预览</Typography.Text>
           <Table
             size="small"
-            rowKey={(_r, i) => String(i)}
+            rowKey="__row"
             pagination={false}
-            dataSource={preview.rows.slice(0, 5)}
+            dataSource={preview.rows.slice(0, 5).map((r, i) => ({ ...r, __row: i + 1 }))}
             scroll={{ x: true }}
             columns={['code', 'name', 'spec', 'uom', 'barcode', 'pack_qty', 'safety_stock'].map(
               (c) => ({

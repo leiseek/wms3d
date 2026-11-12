@@ -1,5 +1,5 @@
 import { lazy, Suspense, useState } from 'react';
-import { Alert, Button, Card, Input, List, Space, Spin, Tag, Typography } from 'antd';
+import { Alert, Button, Card, Input, Space, Spin, Tag, Typography } from 'antd';
 import { useQuery } from '@tanstack/react-query';
 import { useSearchParams } from 'react-router';
 import type { TwinModel } from '@wms3d/contracts';
@@ -111,22 +111,26 @@ export default function TwinPage() {
             }
           >
             {found.length ? (
-              <List
-                size="small"
-                dataSource={found}
-                data-testid="twin-found"
-                renderItem={(f) => (
-                  <List.Item
+              <div data-testid="twin-found">
+                {found.map((f) => (
+                  <div
+                    key={`${f.locationId}-${f.skuCode}`}
                     onClick={() => setHighlight([f.locationId])}
-                    style={{ cursor: 'pointer' }}
+                    style={{
+                      display: 'flex',
+                      justifyContent: 'space-between',
+                      padding: '6px 0',
+                      borderBottom: '1px solid #f0f0f0',
+                      cursor: 'pointer',
+                    }}
                   >
                     <b style={{ fontFamily: 'monospace' }}>{f.code}</b>
                     <span>
                       {f.skuCode} × {f.qty}
                     </span>
-                  </List.Item>
-                )}
-              />
+                  </div>
+                ))}
+              </div>
             ) : (
               <Typography.Text type="secondary">
                 {highlight.length ? '已高亮所选仓位' : '尚未定位'}
