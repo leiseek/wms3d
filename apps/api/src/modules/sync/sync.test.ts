@@ -1,3 +1,4 @@
+import { createHash } from 'node:crypto';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import { SyncDigest, SyncPage } from '@wms3d/contracts';
 import { createKit, LOCS, SKUS, WH1, WH2, type Kit } from '../inventory/testkit.ts';
@@ -111,6 +112,17 @@ describe('sync/masterdata（PG 集成）', () => {
     const b = await d();
     expect(b.hash).not.toBe(a.hash);
     expect(b.locations).toBe(a.locations);
+    // 客户端用全量同步得到的副本逐位复算摘要
+    const { pages } = await round(undefined, 500);
+    const lines = pages
+      .flatMap((p) => [
+        ...p.skus.map((x) => ['sku', x.id, x.updatedAt]),
+        ...p.barcodes.map((x) => ['barcode', x.id, x.updatedAt]),
+        ...p.locations.map((x) => ['location', x.id, x.updatedAt]),
+      ])
+      .map((x) => x.join('|'))
+      .sort((x, y) => (x < y ? -1 : x > y ? 1 : 0));
+    expect(createHash('sha256').update(lines.join('\n')).digest('hex')).toBe(b.hash);
     const bad = await k.req('viewer', {
       method: 'GET',
       url: `/api/v1/sync/masterdata?warehouseId=${WH1}&cursor=zzz`,

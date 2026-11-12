@@ -188,12 +188,12 @@ export async function syncPage(
 }
 
 /**
- * 摘要：三类条数 + sha256(按 entity|id|updated_at(µs) 排序后以 \n 连接)。
+ * 摘要：三类条数 + sha256(按 (entity, id) 字节序排序的 `entity|id|updatedAt(毫秒 ISO，与 SyncPage 相同)` 以 \n 连接)。
  * 客户端以相同算法对本地副本计算并比对（算法见 docs/contract-requests/ws-a2-1.md）。
  */
 export async function syncDigest(q: Queryable, wh: string): Promise<z.output<typeof SyncDigest>> {
   const r = await q.query<{ e: string; id: string; u: string }>(
-    `SELECT e, id, ${usText('updated_at')} AS u FROM (
+    `SELECT e, id, to_char(updated_at AT TIME ZONE 'UTC', 'YYYY-MM-DD"T"HH24:MI:SS.MS"Z"') AS u FROM (
         SELECT 'barcode' AS e, id, updated_at FROM sku_barcodes
         UNION ALL SELECT 'location', id, updated_at FROM locations WHERE warehouse_id = $1
         UNION ALL SELECT 'sku', id, updated_at FROM skus
