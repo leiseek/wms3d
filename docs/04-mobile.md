@@ -5,7 +5,7 @@
 
 ## 1. 形态与网络
 - **一个 APK**（`com.wms3d.app`），Capacitor 8 + React 19 + antd-mobile 5；最短边 ≥ 600dp 为平板布局（双栏），否则手机布局。
-- Web 资源打包进 APK；`capacitor.config.ts`：`android.minWebViewVersion: 99`、`android.minHuaweiWebViewVersion`（占位 12，M3 实测校准）、`server.errorPath: 'webview-too-old.html'`（v2.1 M-N8：Capacitor 只在版本不足时加载该页；它是 `public/` 下的**独立 ES5 页面**，不经 Vite 转译）。另外 `main.tsx` 启动时做运行时特性检测（`Array.prototype.at`、`structuredClone`、`crypto.getRandomValues`、IndexedDB），缺失则跳转同一错误页；WebGL2 缺失只降级 2D（§6）。M0a 已实现，Vite `build.target = 'es2020'`；不使用 `@vitejs/plugin-legacy`（避免大量 polyfill，以版本门槛代替）。
+- Web 资源打包进 APK；`capacitor.config.ts`：`android.minWebViewVersion: 99`、`android.minHuaweiWebViewVersion`（占位 12，M3 实测校准）、`server.errorPath: 'webview-too-old.html'`（`public/` 下的**独立 ES5 页面**，不经 Vite 转译。v2.2，R3：Capacitor 在**任何主框架加载错误**时都会加载 errorPath，因此页面按 `?missing=` 区分两种文案——有参数显示“WebView 过低”，无参数显示“页面加载失败”+“重试”按钮 `location.replace('/')`）。运行时特性检测两层（v2.2，R3）：① `index.html` 中模块脚本之前的**内联 ES5 classic script**（ES 模块、`Array.prototype.at`、`structuredClone`、`crypto.getRandomValues`、IndexedDB），语法不兼容的 ROM 也能跳到错误页；② `main.tsx` 的 `runtime-check.ts` 作为第二层。WebGL2 缺失只降级 2D（§6）。M0a 已实现，Vite `build.target = 'es2020'`；不使用 `@vitejs/plugin-legacy`（避免大量 polyfill，以版本门槛代替）。
 - 网络：WebView `fetch` 直连 API（跨域，见 03 §1.1 CORS）；SSE 用自研 `packages/api-client/src/sse.ts`（fetch 流 + eventsource-parser）带 Bearer（03 §6）。
 - **服务器配置**：手输或扫配置二维码 `wms3d://config?api=https://wms.example.com&pin=sha256/<SPKI>`；扫码后**显示主机名与证书指纹，要求用户确认**；更换服务器必须先清空本地数据（且 outbox 为空）（D35/M28）。
 - **证书信任（两条部署路径，D35/M3b）**：

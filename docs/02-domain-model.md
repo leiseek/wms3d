@@ -86,7 +86,7 @@ erDiagram
 
 ## 5. 核心表
 ```sql
--- 账号（运行时角色 wms_app 设置 `ALTER ROLE wms_app SET transaction_timeout = '30s'`，PG17 新 GUC；布局发布事务内 `SET LOCAL transaction_timeout = '120s'`，v2.1 B-N7）
+-- 账号（运行时角色 wms_app 设置 `ALTER ROLE wms_app SET transaction_timeout = '30s'`，PG17 新 GUC；布局发布：**在 BEGIN 之前**会话级 `SET transaction_timeout = '120s'`、结束后 `RESET`——v2.2 实测 PG 17.11：计时从事务开始，事务内 `SET LOCAL` 无法延长，见 `apps/api/src/db/client.ts` 的 `withLongTransaction`，v2.1 B-N7 / R3）
 users(id uuid pk, username citext unique, display_name, password_hash, role text check in ('ADMIN','MANAGER','OPERATOR','VIEWER'),
       all_warehouses bool default false, must_change_password bool default true, is_active bool, created_at, updated_at)
 user_warehouses(user_id, warehouse_id, role_override text null /*预留，MVP 不启用（D26）*/, pk(user_id, warehouse_id))
@@ -220,13 +220,14 @@ COMMIT;  -- 提交后发布进程内事件 stock.changed
 
 ### 6.6 换班代交（v2.1，B-N6 / M-N9）
 - 共享平板轮班是常态：A 可以带着未同步单据**正常登出**，单据归属不变，设备上的发送器继续用**当前登录用户（B）的令牌**补传。
-- 服务端接受 `performedBy ≠ 令牌用户` 的条件：`device_id` 与令牌 `did` 一致，且 `client_created_at` 落在 performedBy 在该设备上某个 `device_sessions` 区间内（容差 ±5 分钟），且 performedBy 账号仍为启用状态；否则 403（进异常单，交主管处理）。
+- 服务端接受 `performedBy ≠ 令牌用户` 的条件（**v2.2，R3：改为按会话归属校验，不再比对设备时钟**）：单据带 `performerSessionId`，且该 `device_sessions` 行 ① 属于 performedBy；② `device_id` = 令牌 `did`（单据设备取自令牌，body 无 deviceId）；③ `started_at` 在最近 72 小时内；④ `started_at` 早于（或等于）当前令牌会话（`sid`）的 `started_at`；⑤ performedBy 账号仍为启用状态。否则 403 `PERFORMER_NOT_ALLOWED`（进异常单，交主管处理）。离线单在入队时记录当时登录会话的 `sessionId`（登录响应 `session.id`）。
+- **残余风险（书面接受）**：同一设备上的后继用户 B 若恶意构造单据，可在 72 小时内把操作记到前一位操作员 A 名下（A 的会话 id 曾在本机出现）。缓解：`performed_by`/`submitted_by`/`performer_session_id` 全部入审计；看板与交接班报表列出“代交单据”，主管可追溯与冲正。
 - `inv_txns` 分别记录 `performed_by`（A）与 `submitted_by`（B），审计可追溯。
 - 登录/登出/令牌过期分别开启/关闭会话；设备上无人登录时发送器暂停（`BLOCKED_AUTH`），任何用户在该设备登录后自动继续。
 
 ### 6.5 不变量与对账（D12/D50）
 - `on_hand = SUM(qty_delta)`（FULL OUTER JOIN + COALESCE 0，缺失余额行视为 0）；存在余额行的键：最新 movement 的 `balance_after = on_hand`。
-- 增量对账：从 `reconcile_checkpoints.max_movement_id` 之后涉及的键做校验；每周全量。夜间任务用 `pg_try_advisory_lock` 防重复，按仓库 `timezone` 定时。
+- 增量对账：从 `reconcile_checkpoints.max_movement_id` 之后涉及的键做校验；每周全量。夜间任务用 `pg_try_advisory_lock(LOCK_NS.JOB, <任务编号>)` 防重复，按仓库 `timezone` 定时。
 
 ## 7. 业务规则
 | 规则 | 说明 |
@@ -267,7 +268,7 @@ COMMIT;  -- 提交后发布进程内事件 stock.changed
 }
 ```
 发布流程（`POST /warehouses/:id/layout/publish`，幂等 + CAS）：
-1. `pg_advisory_xact_lock(hashtext('barcode-ns'))`；`UPDATE layout_versions SET status='PUBLISHED', version=$next ... WHERE id=$draft AND status='DRAFT' AND row_version=$rv`（0 行 → 409/412；重复点击返回已发布版本，D5）。
+1. `pg_advisory_xact_lock(LOCK_NS.BARCODE, 0)`（v2.2，R3：统一双 int 形式）；`UPDATE layout_versions SET status='PUBLISHED', version=$next ... WHERE id=$draft AND status='DRAFT' AND row_version=$rv`（0 行 → 409/412；重复点击返回已发布版本，D5）。
 2. `validateLayout` 权威校验（重叠 OBB、越界、巷道宽度、bay 区间、编码唯一、编码长度）。
 3. `expandLayout` → 与现有仓位**两轮匹配**（v2.1，B-N3）：第一轮按 `(rack.layout_key, rack_bay_index, level, position)`；第二轮把未匹配的新仓位按 **code** 与"已停用"或"本次待停用"的现有仓位匹配，命中则复用其 `location.id` 并改绑到新货架（库存/历史连续，标签无需补打；典型场景：删掉货架后在原位重画）。差异四类：**新增 / 保留 / 改码 / 停用**（D15）。
 4. 被停用或改码的仓位按 id 升序 `FOR UPDATE`；停用者必须无库存（否则 `LAYOUT_HAS_STOCK`）；**有库存仓位改码**需在 validate 预览中二次确认（`confirmRecode: true`），否则 `LAYOUT_RECODE_NEEDS_CONFIRM`。

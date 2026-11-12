@@ -19,17 +19,23 @@
     "dev:api": "pnpm --filter @wms3d/api dev",
     "dev:admin": "pnpm --filter @wms3d/admin dev",
     "dev:mobile": "pnpm --filter @wms3d/mobile dev",
-    "apk:debug": "bash scripts/build-apk.sh"
+    "apk:debug": "bash scripts/build-apk.sh",
+    "mock": "pnpm --filter @wms3d/api-client mock",
+    "db:reset:dev": "bash scripts/db-reset-dev.sh",
+    "gen:contracts": "pnpm --filter @wms3d/contracts gen:openapi && pnpm --filter @wms3d/domain gen:golden"
   },
   "devDependencies": {
     "@eslint/js": "^10.0.1",
+    "@playwright/test": "~1.65.0",
+    "@types/node": "^24.0.0",
     "eslint": "^10.14.0",
     "eslint-plugin-react-hooks": "^7.0.0",
+    "fast-check": "~4.10.2",
     "globals": "^17.14.0",
     "prettier": "^3.6.0",
+    "tsx": "~4.23.15",
     "typescript": "~6.0.3",
     "typescript-eslint": "^8.72.2",
-    "vitest": "^5.1.0",
-    "@types/node": "^24.0.0"
+    "vitest": "^5.1.0"
   }
 }

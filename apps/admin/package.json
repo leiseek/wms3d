@@ -10,14 +10,26 @@
     "preview": "vite preview"
   },
   "dependencies": {
+    "@tanstack/react-query": "~5.107.1",
+    "@wms3d/api-client": "workspace:*",
+    "@wms3d/contracts": "workspace:*",
+    "@wms3d/domain": "workspace:*",
+    "@wms3d/twin3d": "workspace:*",
+    "@wms3d/ui": "workspace:*",
     "antd": "~6.7.0",
+    "dexie": "~4.4.7",
+    "konva": "~10.9.1",
     "react": "~19.3.1",
-    "react-dom": "~19.3.1"
+    "react-dom": "~19.3.1",
+    "react-konva": "~19.3.2",
+    "react-router": "~8.5.1",
+    "zustand": "~5.1.0"
   },
   "devDependencies": {
     "@types/react": "~19.3.0",
     "@types/react-dom": "~19.3.0",
     "@vitejs/plugin-react": "^6.3.0",
+    "msw": "~3.0.5",
     "vite": "~8.3.8"
   }
 }

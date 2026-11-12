@@ -4,21 +4,24 @@
 import { execSync } from 'node:child_process';
 
 const OWNERS = {
-  // v2.1（R2 N11）：apps/api/src/db/**（schema、迁移、locks.ts）在 M0b 冻结后归 Lead
+  // contract-v1（M0b）起：Lead 独占 packages/contracts/**、packages/api-client/**（含 mock）、apps/api/src/db/**、
+  // apps/api/src/modules/index.ts|types.ts、apps/api/src/test/**、根配置与所有 package.json / lockfile。
   'ws-a1': [
     'apps/api/src/app.ts',
     'apps/api/src/app.test.ts',
     'apps/api/src/main.ts',
     'apps/api/src/plugins/',
     'apps/api/src/lib/',
-    'packages/domain/src/scan/',
+    'apps/api/src/modules/ops/',
     'apps/api/src/modules/auth/',
     'apps/api/src/modules/users/',
-    'apps/api/src/modules/devices/',
     'apps/api/src/modules/warehouses/',
     'apps/api/src/modules/layout/',
+    'apps/api/src/modules/locations/',
     'apps/api/src/modules/skus/',
+    'apps/api/src/modules/scan/',
     'apps/api/src/modules/labels/',
+    'packages/domain/src/scan/',
   ],
   'ws-a2': [
     'apps/api/src/modules/inventory/',
@@ -27,13 +30,17 @@ const OWNERS = {
     'apps/api/src/modules/twin/',
     'apps/api/src/modules/events/',
     'apps/api/src/modules/audit/',
-    'apps/api/src/modules/jobs/',
     'apps/api/src/modules/dashboard/',
+    'apps/api/src/jobs/',
     'packages/domain/src/inventory/',
   ],
   'ws-b': ['apps/admin/'],
   'ws-c': ['apps/mobile/', 'native/', 'packages/scanner/', 'packages/ui/'],
-  'ws-d1': ['apps/admin/src/features/layout-designer/', 'packages/domain/src/layout/'],
+  'ws-d1': [
+    'apps/admin/src/features/layout-designer/',
+    'packages/domain/src/layout/',
+    'packages/domain/src/core/',
+  ],
   'ws-d2': ['packages/twin3d/'],
   'ws-e': ['packages/labels/'],
   'ws-f': ['infra/', 'scripts/', 'e2e/'],

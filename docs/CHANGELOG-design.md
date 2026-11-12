@@ -29,3 +29,12 @@
 - 计划与隔离：WS-A 拆为 A1/A2（n=8），`apps/api/src/db/**` 冻结后归 Lead；依赖预装 + 契约请求通道；合并队列移出 git；**M0a 在 main 开发记为一次性例外，M0b 起 Lead 在 `/workspace/wms3d-wt/lead` 开发，main 只合并**。
 - M0a 已完成（10 §M0a 完成记录），其中 R2 涉及脚手架的修复（test-db.sh、A1/A2、lead worktree、content 根包裹、WebView 门槛页）已落地。
 - **contract-v1 尚未冻结**：等待评审对 R2-resolution §5 所列条目做定向复核。
+
+## v2.2 · 2026-11-12（PT）· **冻结：contract-v1**
+- R3 两份定向复核均为 APPROVE-WITH-NITS（`reviews/R3-domain-backend.md` 4 MINOR、`reviews/R3-mobile-3d-labels.md` 5 MINOR），全部接受并修复，见 `reviews/R3-resolution.md`。
+- **换班代交改为按会话归属**：`performerSessionId`（同设备、72h、早于当前会话、账号启用），不再依赖设备时钟；设备 ID 只取自 JWT `did`；残余风险书面接受（审计 + 交接班报表）（02 §6.6、03 §5）。
+- **PG 17.11 实测**：`transaction_timeout` 在事务开始时生效，`SET LOCAL` 不能延长 → 长事务在 BEGIN 前会话级设置（`withLongTransaction`）（02、03、09 #17）。
+- advisory lock 统一双 int（`LOCK_NS.BARCODE/JOB/MIGRATION/LAYOUT_PUBLISH`）；删除 10 §6.5 的 lockfile 重建残留；01 SSE 行改为 eventsource-parser；OpenAPI 输出 `packages/contracts/openapi.json`。
+- 移动：errorPath 页两种文案；`index.html` 内联 ES5 检测；`wrapContentRoot` 失败记录诊断；ScanKeyBuffer 溢出丢弃到终止符。
+- **M0b 交付**（10 §M0b 完成记录）：contracts（75 个端点 / 63 路径、Zod + OpenAPI）、DB schema 与迁移（0000 + 0001 约束/触发器/视图/授权）、黄金样例与测试、演示数据、契约驱动 mock（MSW + Fastify，含 SSE）、API 外壳（type-provider-zod、swagger、作用域守卫、CORS、problem+json、健康检查）、api-client；`docs/workstreams/*` 8 份工作流简报。
+- 状态：**契约冻结（git tag `contract-v1`）**；之后的契约变更走 `docs/contract-requests/` 并按 contract-v1.x 递增记录。

@@ -5,10 +5,15 @@
   "type": "module",
   "description": "Pure domain logic: geometry, location codes, classifyScan, planMovements",
   "exports": {
-    ".": "./src/index.ts"
+    ".": "./src/index.ts",
+    "./geometry-golden.json": "./src/__fixtures__/geometry-golden.json"
   },
   "scripts": {
     "build": "tsc -p tsconfig.json",
-    "typecheck": "tsc -p tsconfig.json --noEmit"
+    "typecheck": "tsc -p tsconfig.json --noEmit",
+    "gen:golden": "node --experimental-strip-types scripts/gen-golden.ts"
+  },
+  "dependencies": {
+    "@wms3d/contracts": "workspace:*"
   }
 }

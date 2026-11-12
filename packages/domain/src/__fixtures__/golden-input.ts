@@ -1,0 +1,150 @@
+import type { LayoutDoc, RackTypeSpec } from '@wms3d/contracts';
+
+/** 黄金样例输入（02 §2）。改动 = 契约变更。 */
+export const goldenType: RackTypeSpec = {
+  key: 'g-4x3',
+  bays: 4,
+  levels: 3,
+  positionsPerLevel: 2,
+  bayWidthM: 2.7,
+  depthM: 1.0,
+  levelHeightsM: [1.5, 1.5, 1.5],
+  beamM: 0.1,
+  uprightM: 0.08,
+  defaultMaxQty: null,
+};
+const L = 11.2;
+export const goldenLayout: LayoutDoc = {
+  schemaVersion: 2,
+  warehouse: { widthM: 60, depthM: 40, heightM: 8 },
+  zones: [
+    {
+      code: 'A',
+      kind: 'STORAGE',
+      polygon: [
+        [0, 0],
+        [30, 0],
+        [30, 40],
+        [0, 40],
+      ],
+    },
+    {
+      code: 'B',
+      kind: 'STORAGE',
+      polygon: [
+        [30, 0],
+        [60, 0],
+        [60, 40],
+        [30, 40],
+      ],
+    },
+  ],
+  rackTypes: [goldenType],
+  racks: [
+    // 水平巷道 A03（+X 行进）：L 在北（rot 0，取货面 z=5），R 在南（rot 180，取货面 z=8）
+    {
+      key: 'hL1',
+      zone: 'A',
+      type: 'g-4x3',
+      aisle: 3,
+      rackNo: 1,
+      bayStart: 1,
+      x: 0,
+      z: 5,
+      rotationDeg: 0,
+    },
+    {
+      key: 'hL2',
+      zone: 'A',
+      type: 'g-4x3',
+      aisle: 3,
+      rackNo: 2,
+      bayStart: 9,
+      x: L,
+      z: 5,
+      rotationDeg: 0,
+    },
+    {
+      key: 'hR1',
+      zone: 'A',
+      type: 'g-4x3',
+      aisle: 3,
+      rackNo: 1,
+      bayStart: 2,
+      x: L,
+      z: 8,
+      rotationDeg: 180,
+    },
+    {
+      key: 'hR2',
+      zone: 'A',
+      type: 'g-4x3',
+      aisle: 3,
+      rackNo: 2,
+      bayStart: 10,
+      x: 2 * L,
+      z: 8,
+      rotationDeg: 180,
+    },
+    // 竖直巷道 B04（+Z 行进）：L 在东（rot 90，取货面 x=40），R 在西（rot 270，取货面 x=37）
+    {
+      key: 'vL1',
+      zone: 'B',
+      type: 'g-4x3',
+      aisle: 4,
+      rackNo: 1,
+      bayStart: 1,
+      x: 40,
+      z: 0,
+      rotationDeg: 90,
+    },
+    {
+      key: 'vL2',
+      zone: 'B',
+      type: 'g-4x3',
+      aisle: 4,
+      rackNo: 2,
+      bayStart: 9,
+      x: 40,
+      z: L,
+      rotationDeg: 90,
+    },
+    {
+      key: 'vR1',
+      zone: 'B',
+      type: 'g-4x3',
+      aisle: 4,
+      rackNo: 1,
+      bayStart: 2,
+      x: 37,
+      z: L,
+      rotationDeg: 270,
+    },
+    {
+      key: 'vR2',
+      zone: 'B',
+      type: 'g-4x3',
+      aisle: 4,
+      rackNo: 2,
+      bayStart: 10,
+      x: 37,
+      z: 2 * L,
+      rotationDeg: 270,
+    },
+  ],
+  floorAreas: [],
+};
+export const goldenPatterns = [
+  {
+    pattern: '{Zone}{Aisle:2}-{Bay:2}-{Level:A}{Pos:2}',
+    parts: { zone: 'A', aisle: 3, bay: 17, level: 3, position: 2 },
+  },
+  {
+    pattern: '{Zone}{Aisle:2}-{Bay:3}-{Level:A}{Pos:2}',
+    parts: { zone: 'B', aisle: 12, bay: 101, level: 1, position: 1 },
+  },
+  {
+    pattern: '{Zone}{Aisle:2}{Side}-{Bay:2}-{Level:2}{Pos:1}',
+    parts: { zone: 'C', aisle: 1, bay: 4, level: 10, position: 3, side: 'R' as const },
+  },
+];

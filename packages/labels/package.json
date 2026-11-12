@@ -10,5 +10,15 @@
   "scripts": {
     "build": "tsc -p tsconfig.json",
     "typecheck": "tsc -p tsconfig.json --noEmit"
+  },
+  "dependencies": {
+    "@wms3d/contracts": "workspace:*",
+    "@wms3d/domain": "workspace:*",
+    "bwip-js": "~4.11.4",
+    "pdfkit": "~0.20.2"
+  },
+  "devDependencies": {
+    "@types/pdfkit": "~0.17.7",
+    "zxing-wasm": "~3.1.6"
   }
 }

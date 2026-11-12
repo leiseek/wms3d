@@ -2,16 +2,17 @@
 
 > v2（2026-11-12）：M0 拆为 M0a/M0b；设计器（WS-D1）与 twin3d（WS-D2）拆开，3D 预览在 twin3d 之后接线；新增 2 天联调里程碑 M4.5；修正 M5/M6 依赖；新增"单机多 Agent 隔离"与原生部署路径。总工期约 18 个工作日。
 > **v2.1**（2026-11-12，R2）：WS-A 拆为 WS-A1（主数据/布局/标签端点）与 WS-A2（库存/盘点/同步/孪生），n=8（B-N11）；`apps/api/src/db/**` 冻结后归 Lead；依赖预装与契约请求通道（B-N9）；合并队列移出 git、M0b 起 Lead 在 worktree 开发、main 只做合并（B-N10）；M3 真机验证改为 M6 发布门禁（M-N7）；M0a 完成记录。
+> **v2.2**（2026-11-12，R3）：契约 v1 冻结（tag `contract-v1`）；M0b 完成记录见 §M0b；工作流简报 `docs/workstreams/`；ownership 与模块目录按 contracts tag 对齐。
 
 ## 1. 组织与所有权
 | 角色/WS | 名称 | 独占目录（写权限） |
 |---|---|---|
-| Lead（Noa） | 契约、集成、评审、合并 | `packages/contracts/**`、`packages/api-client/**`（随契约生成）、`packages/domain/src/index.ts`（公共签名）、根配置、`pnpm-lock.yaml`、`docs/**`（`docs/contract-requests/**` 除外）、**`apps/api/src/db/**`**（schema、迁移、`locks.ts`；契约冻结后归 Lead，v2.1 B-N11） |
-| WS-A1 | 后端：主数据与布局 | `apps/api/src/{app.ts,main.ts,plugins,lib}/**`、`apps/api/src/modules/{auth,users,devices,warehouses,layout,skus,labels}/**`、`packages/domain/src/scan/**`（classifyScan 实现） |
-| WS-A2 | 后端：库存与运行时 | `apps/api/src/modules/{inventory,counts,sync,twin,events,audit,jobs,dashboard}/**`、`packages/domain/src/inventory/**`（planMovements） |
+| Lead（Noa） | 契约、集成、评审、合并 | `packages/contracts/**`、`packages/api-client/**`（客户端 + mock，随契约维护）、`packages/domain/src/{demo,__fixtures__}/**`、`apps/api/src/{modules/index.ts,modules/types.ts,test}/**`、`packages/domain/src/index.ts`（公共签名）、根配置、`pnpm-lock.yaml`、`docs/**`（`docs/contract-requests/**` 除外）、**`apps/api/src/db/**`**（schema、迁移、`locks.ts`；契约冻结后归 Lead，v2.1 B-N11） |
+| WS-A1 | 后端：主数据与布局 | `apps/api/src/{app.ts,app.test.ts,main.ts,plugins,lib}/**`、`apps/api/src/modules/{ops,auth,users,warehouses,layout,locations,skus,scan,labels}/**`（v2.2：模块 = contracts tag；设备路由在 users）、`packages/domain/src/scan/**`（classifyScan 实现） |
+| WS-A2 | 后端：库存与运行时 | `apps/api/src/modules/{inventory,counts,sync,twin,events,audit,dashboard}/**`、`apps/api/src/jobs/**`（夜间任务）、`packages/domain/src/inventory/**`（planMovements） |
 | WS-B | PC 后台（除设计器） | `apps/admin/**`（不含 `src/features/layout-designer/**`） |
 | WS-C | 移动端 & 原生 | `apps/mobile/**`（含 `android/` MainActivity pre-IME Hook）、`native/**`、`packages/scanner/**`、`packages/ui/**` |
-| WS-D1 | 布局设计器 | `apps/admin/src/features/layout-designer/**`、`packages/domain/src/layout/**`（expandLayout、validateLayout、geometry、编码生成） |
+| WS-D1 | 布局设计器 | `apps/admin/src/features/layout-designer/**`、`packages/domain/src/layout/**` 与 `packages/domain/src/core/**`（expandLayout、validateLayout、geometry、编码生成；必须保持 golden 测试全绿，黄金样例 `__fixtures__/**` 归 Lead） |
 | WS-D2 | 3D 孪生 | `packages/twin3d/**` |
 | WS-E | 标签 | `packages/labels/**` |
 | WS-F | QA & DevOps | `infra/**`、`scripts/**`、`e2e/**` |
@@ -64,6 +65,8 @@ gantt
 5. API 外壳：Fastify 5.12 + fastify-type-provider-zod 7 + @fastify/swagger 9.9、作用域 preHandler 骨架、CORS allowlist、problem+json、健康检查。
 验收：契约冻结 tag `contract-v1`；OpenAPI 可浏览；mock 可驱动 admin/mobile 外壳登录页。
 **D0b**：Swagger + mock 登录。
+
+**M0b 完成记录（2026-11-12 PT）**：R3 9 条 MINOR 全部修复（`reviews/R3-resolution.md`）；contracts 75 个端点 + `openapi.json`；Drizzle schema + 迁移 0000/0001；domain 黄金样例与 demo 数据集（386 仓位）；契约驱动 mock（`pnpm mock` / MSW）驱动 admin、mobile 登录（截图 `/workspace/wms3d-artifacts/m0b-mock-login-*.png`）；API 外壳（守卫、problem+json、CORS、Swagger `/api/v1/docs`）；api-client（single-flight 刷新、SSE、幂等键）。`pnpm verify` 在 main 全绿，tag `contract-v1`。8 个工作流 worktree/库/端口已建好，简报见 `docs/workstreams/`。
 
 ### M1 · 后端核心（5 天；WS-A）
 认证（轮换 + 60s 宽限 + single-flight 友好）、改密、设备与心跳；仓库设置、模板库、布局草稿/校验/发布（差异四类、改码确认、待补打清单、DEFERRABLE 互换）；SKU/条码/登记表/CSV；**库存引擎**（02 §6：幂等写法、锁顺序、容量/混放锁内校验、balancesAfter 重建、冲正）；查询（balances、movements、transactions、locate、scan/resolve、sync 分页+tombstones+digest、twin、occupancy+LAYOUT_STALE）；SSE（fetch 鉴权、exp 关流）；审计同事务；夜间任务（advisory lock）。
@@ -159,6 +162,6 @@ Konva 画布（02 §2 坐标约定）、货架放置/拖动/吸附/90° 旋转�
 ### 6.5 合并协议（到 main）
 1. WS 在 worktree 内：`git fetch`（本地）→ `git rebase main` → `pnpm install --frozen-lockfile` → `pnpm verify`（含 check-ownership）。
 2. 提交合并请求（v2.1，B-N10：队列移出 git，避免 WS 改 `docs/` 违反所有权）：写文件 `/workspace/.wms3d-queue/<UTC时间戳>-<ws>.json`（`{branch, commit, verify: "pass", depsChanged, notes}`）；Lead 按文件名顺序处理，处理完移到 `done/`。
-3. Lead 在主仓按队列顺序：`git merge --no-ff <branch>`；若 WS 新增依赖，Lead 重建 lockfile 并单独提交 `chore(deps)`；在 main 上再跑 `pnpm verify`，失败立即 `git revert -m 1` 并通知该 WS。
+3. Lead 在主仓按队列顺序：`git merge --no-ff <branch>`；在 main 上再跑 `pnpm verify`，失败立即 `git revert -m 1` 并通知该 WS。
 4. 契约变更只由 Lead 提交；合并后打 `contract-vN` tag，各 WS rebase。
 5. 每个里程碑结束：main 打 tag `m<x>-done`，更新本文档与 CHANGELOG。

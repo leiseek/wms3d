@@ -5,7 +5,7 @@
 
 ## 1. 约定
 - 基础路径 `/api/v1`，JSON/UTF-8，时间 ISO-8601 UTC；界面按仓库 `timezone` 显示。
-- 契约来源：`packages/contracts`（Zod 4）→ `pnpm gen:openapi` 生成 `apps/api/openapi.json`；MSW mock 与示例数据**由 contracts 自动生成**，CI 校验与 OpenAPI 一致（D46）。
+- 契约来源：`packages/contracts`（Zod 4）→ `pnpm gen:contracts`（`gen:openapi`）生成 `packages/contracts/openapi.json`（API 在 `/api/v1/openapi.json` 与 `/api/v1/docs` 提供）；MSW mock 与示例数据**由 contracts 自动生成**，CI 校验与 OpenAPI 一致（D46）。
 - 分页：普通列表 `?limit&cursor`（keyset）；**台账类（movements、transactions、audit）按 `id desc` keyset**（D33）。
 - 乐观锁：可编辑资源用 `rowVersion`，`PUT/PATCH` 带 `If-Match: <rowVersion>`，不符 → 412。
 - problem `type` 用 `urn:wms3d:error:<CODE>`（D32）。
@@ -49,7 +49,7 @@ Fastify `preHandler` 统一解析并校验 `user_warehouses`（或 `all_warehous
 错误码（contracts 枚举；v2.1 新增 `COUNT_RECOUNT_REQUIRED`、`PERFORMER_NOT_ALLOWED`）：`VALIDATION_FAILED, UNAUTHENTICATED, FORBIDDEN, NOT_FOUND, CONFLICT, PRECONDITION_FAILED, PASSWORD_CHANGE_REQUIRED, DEVICE_DISABLED, IDEMPOTENCY_KEY_REUSED, INSUFFICIENT_STOCK, LOCATION_INACTIVE, LOCATION_CAPACITY_EXCEEDED, MIXED_SKU_NOT_ALLOWED, BARCODE_CONFLICT, UNKNOWN_BARCODE, WRONG_WAREHOUSE, LAYOUT_INVALID, LAYOUT_HAS_STOCK, LAYOUT_RECODE_NEEDS_CONFIRM, LAYOUT_STALE, TXN_ALREADY_REVERSED, REVERSAL_NOT_ALLOWED, COUNT_OUTBOX_PENDING, COUNT_RECOUNT_REQUIRED, PERFORMER_NOT_ALLOWED, RATE_LIMITED, INTERNAL`。
 
 ### 1.3 事务超时（v2.1，B-N7）
-- `wms_app` 角色级 `transaction_timeout = 30s`（PG17）+ `idle_in_transaction_session_timeout = 30s`；布局发布事务 `SET LOCAL transaction_timeout = '120s'`。
+- `wms_app` 角色级 `transaction_timeout = 30s`（PG17）+ `idle_in_transaction_session_timeout = 30s`；布局发布事务在 BEGIN 前会话级 `SET transaction_timeout = '120s'`，结束后 `RESET`（v2.2：PG 17.11 实测事务内 `SET LOCAL` 不能延长已开始事务的计时，R3）。
 - CSV 导入：先全量预校验（dry-run 同一代码路径），commit 时**每 1000 行一个事务**，返回已提交批次；失败可从断点重跑（按 code upsert 天然幂等）。
 
 ### 3.1 客户端（离线队列）处理矩阵（D6/D29/M28）
@@ -69,7 +69,7 @@ Fastify `preHandler` 统一解析并校验 `user_warehouses`（或 `all_warehous
 ### 4.1 库存交易
 - 请求头 `Idempotency-Key`：客户端 UUIDv7（`uuid@14` 的 `v7()`，底层 `crypto.getRandomValues`，D3），在用户确认时生成并随 outbox 持久化。
 - 唯一范围 `(warehouse_id, idempotency_key)`；写法见 02 §6.2（`INSERT ... ON CONFLICT DO NOTHING RETURNING` + 新语句 SELECT 比对）。
-- `request_hash`（D4）：对**解析前的原始请求体**（去掉 `clientCreatedAt`、`deviceId` 等传输层字段）按 **RFC 8785 JCS** 规范化后 sha256；因此 `locationCode` 原文在主数据变更前后 hash 不变。contracts 内置 golden vectors 测试。
+- `request_hash`（D4）：对**解析前的原始请求体**（去掉 `clientCreatedAt`、`createdOffline`、`performerSessionId` 等传输层字段，见 contracts `TXN_HASH_EXCLUDED_FIELDS`）按 **RFC 8785 JCS** 规范化后 sha256；因此 `locationCode` 原文在主数据变更前后 hash 不变。contracts 内置 golden vectors 测试。
 - 结果：首次 201；重放（hash 相同且 `performed_by`、`device_id` 一致）200 `replayed:true`，`balancesAfter` 由 movements 重建；否则 409（不返回首次内容）。
 - 首次请求以 4xx 回滚 → 键不留痕，同键重放会重新执行。
 
@@ -139,13 +139,15 @@ Fastify `preHandler` 统一解析并校验 `user_warehouses`（或 `all_warehous
 
 交易命令（Zod `discriminatedUnion('type')`，客户端可提交类型仅以下四种）：
 ```jsonc
-{"type":"INBOUND","warehouseId":"…","refNo":"PO-1001","performedBy":"<userId>","clientCreatedAt":"…",
- "lines":[{"locationId":"…"|null,"locationCode":"A03-17-C02"|null,"skuId":null,"skuBarcode":"6901234567890","qty":12}]}
-{"type":"OUTBOUND", ...同上}
-{"type":"TRANSFER","warehouseId":"…","lines":[{"fromLocationId":"…","toLocationId":"…","skuId":"…","qty":5}]}
-{"type":"ADJUST","warehouseId":"…","reason":"DAMAGE","refNo":"EXC-…","lines":[{"locationId":"…","skuId":"…","qtyDelta":-2}]}
+// 请求头：Authorization: Bearer <access>；Idempotency-Key: <UUIDv7>。设备 ID 取自令牌 did，body 中没有 deviceId（v2.2，R3）。
+{"type":"INBOUND","warehouseId":"…","refNo":"PO-1001","performedBy":"<userId>","performerSessionId":"<sessionId，代交时必填>",
+ "clientCreatedAt":"…","createdOffline":false,"force":false,
+ "lines":[{"locationCode":"WH1.A03-17-C02","skuBarcode":"6901234567890","qty":12}]}   // 每行 locationId|locationCode 二选一，skuId|skuBarcode 二选一
+{"type":"OUTBOUND", ...同上（无 force）}
+{"type":"TRANSFER","warehouseId":"…","performedBy":"…","clientCreatedAt":"…","lines":[{"fromLocationId":"…","toLocationId":"…","skuId":"…","qty":5}]}
+{"type":"ADJUST","warehouseId":"…","performedBy":"…","clientCreatedAt":"…","reason":"DAMAGE","refNo":"EXC-…","lines":[{"locationId":"…","skuId":"…","qtyDelta":-2}]}
 ```
-`performedBy` 与令牌用户（`submitted_by`）不同时（v2.1，B-N6 换班代交）：仅当令牌 `did` = 单据 `deviceId`、`clientCreatedAt` 落在 performedBy 在该设备的 `device_sessions` 区间内（±5 分钟）、且 performedBy 账号启用时接受；否则 403 `PERFORMER_NOT_ALLOWED`。`locationCode` 接受载荷形式（`WH1.A03-17-C02`）与裸编码（M-N12）。
+权威定义见 `packages/contracts/src/inventory.ts`（`TxnCommand`）。`performedBy` 与令牌用户（`submitted_by`）不同时（换班代交，02 §6.6，v2.2 R3 改为按会话归属）：`performerSessionId` 必须是 performedBy 在本设备（令牌 `did`）上、72 小时内、早于当前会话开始的 `device_sessions`，且 performedBy 账号启用；否则 403 `PERFORMER_NOT_ALLOWED`。`locationCode` 接受载荷形式（`WH1.A03-17-C02`）与裸编码（M-N12）。
 
 ### 盘点
 | 方法 | 路径 |

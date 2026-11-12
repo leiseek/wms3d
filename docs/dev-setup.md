@@ -1,9 +1,10 @@
-# 开发环境与运行指南（M0a，v2.1 隔离规则）
+# 开发环境与运行指南（M0a → M0b，v2.2 · contract-v1）
 
 ## 1. 工具链（本机 /opt/tools）
 ```bash
 source /opt/tools/env.sh     # JAVA_HOME(JDK 21) / ANDROID_HOME / PG17 二进制 / platform-tools 入 PATH
 ```
+> 机器重启后若 `/opt/tools` 丢失：`bash scripts/install-tools.sh all`（或 `pg|jdk|android` 单项）重新安装并写出 `/opt/tools/env.sh`；然后 `pnpm install` 与 `scripts/dev-db.sh start`。PG 数据目录权限损坏时只能重新 initdb 后在各 worktree 跑 `pnpm db:reset:dev`。
 | 工具 | 位置/版本 |
 |---|---|
 | Node / pnpm | 24.22 / 10.34（系统预装） |
@@ -12,14 +13,20 @@ source /opt/tools/env.sh     # JAVA_HOME(JDK 21) / ANDROID_HOME / PG17 二进制
 | JDK 21 / Android SDK 36 | `/opt/tools/jdk21`、`/opt/tools/android-sdk` |
 | Docker 29.9.3 + compose v5.7.1 | `/opt/tools/docker`（仅 host/none 网络，见 spikes/m0a-docker.md） |
 
-## 2. 仓库结构（M0a 骨架）
+## 2. 仓库结构（M0b，contract-v1）
 ```
-apps/api        Fastify 外壳：GET /api/v1/health, /api/v1/ready
-apps/admin      React 19.3 + AntD 6.7 + Vite 8 外壳
-apps/mobile     React + Capacitor 8.6；android/ 原生工程（pre-IME 拦截骨架、网络安全配置、蓝牙权限）
-packages/*      contracts / api-client / domain / twin3d / scanner / labels / ui —— 仅占位，接口在 M0b（R2 后）冻结
-scripts/        dev-db.sh、test-db.sh、wt.sh、ws-config.sh、build-apk.sh、check-ownership.mjs、docker-spike.sh
+packages/contracts   Zod schema（单一真相源）+ routes.ts（75 个端点：roles/scope/owner）+ openapi.ts → openapi.json（pnpm gen:contracts）
+packages/domain      编码/几何/布局展开与校验/扫码分类（签名冻结）、黄金样例 __fixtures__、demo 数据集（386 仓位/24 SKU/5 用户）
+packages/api-client  类型化客户端（single-flight 刷新）、SSE（fetch+eventsource-parser）、幂等键；mock/：契约驱动 mock（MSW + Fastify）
+apps/api             Fastify 外壳：src/app.ts、lib/（problem+json、守卫、CORS、事件总线）、modules/<tag>/（每个 contracts tag 一个模块）、
+                     db/（schema.ts、migrations/、migrate.ts、seed-demo.ts、locks.ts、client.ts —— 归 Lead）、test/pg.ts（克隆测试库）
+apps/admin           React 19.3 + AntD 6.7 + Vite 8（登录页已接 api-client）
+apps/mobile          React + Capacitor 8.6；android/ 原生工程（pre-IME 拦截、ScanKeyBuffer）
+packages/twin3d | scanner | labels | ui   各 WS 实现（依赖已预装）
+scripts/             dev-db.sh、test-db.sh、db-reset-dev.sh、wt.sh、install-tools.sh、build-apk.sh、check-ownership.mjs
+docs/workstreams/    各工作流自包含简报
 ```
+未实现的真实 API 路由统一返回 501 `NOT_IMPLEMENTED`（problem+json）；实现方式：在 `modules/<tag>/index.ts` 里 `routes.register(contractsRoute, handler)`，守卫（鉴权、角色、改密、Idempotency-Key、If-Match、仓库作用域、设备）由 `lib/routing.ts` 按路由元数据自动套用。
 
 ## 3. 常用命令（仓库根）
 ```bash
@@ -29,6 +36,9 @@ pnpm lint | pnpm typecheck | pnpm test | pnpm build | pnpm format
 pnpm dev:api         # 端口 PORT_API（默认 4000）
 pnpm dev:admin       # 端口 PORT_ADMIN（默认 4010，/api 代理到 PORT_API）
 pnpm dev:mobile      # 端口 PORT_MOBILE（默认 4020，浏览器调试移动端）
+pnpm mock            # 契约驱动 mock API（PORT_API；演示账号 admin/manager/op1/op2/viewer，密码 Wms3d#demo）
+pnpm db:reset:dev    # 重建本 WS 自己的库：删库→建库→迁移→演示数据（只碰 .env.local 里的 wms_<ws>）
+pnpm gen:contracts   # 重新生成 openapi.json 与黄金样例（仅 Lead）
 pnpm apk:debug       # 构建 debug APK → /workspace/wms3d-artifacts/wms3d-debug-<sha>.apk 和 -latest.apk
 ```
 - APK 构建会同时跑 Android JVM 单测（`testDebugUnitTest`），Gradle 通过 `flock /tmp/wms3d-gradle.lock` 全局串行。
@@ -81,3 +91,10 @@ scripts/wt.sh list | remove ws-a1 [--drop-db]
 - `scripts/wt.sh create ws-a1` 实测（v2.1 拆分后重做）：worktree、`wms_ws_a1`、端口 4100 上 `/api/v1/ready` 返回 `{"status":"ready","database":"wms_ws_a1"}`；`check:ownership` 通过。`test-db.sh template/clone/gc ws-a1` 实测通过。
 - R2 涉及 M0a 的修复已落地：包住 `android.R.id.content` 根布局（M-N16）、`minHuaweiWebViewVersion` + `server.errorPath` ES5 页 + 运行时特性检测（M-N8），APK 已重建。
 - Docker spike：部分可用（仅 host/none 网络），见 `spikes/m0a-docker.md`。
+
+## 7. M0b 运行方式（2026-11-12 PT）
+- **前端对 mock**：`pnpm mock`（Fastify，含 SSE）+ `pnpm dev:admin` / `pnpm dev:mobile`（Vite 把 `/api` 代理到 PORT_API）；或纯浏览器 `VITE_API_MOCK=msw pnpm dev:admin`（MSW，Service Worker 在 `public/mockServiceWorker.js`）。Vite 监听 `localhost`（不是 127.0.0.1）。
+- **后端对真实库**：`pnpm db:reset:dev` 后 `pnpm dev:api`；`WMS_MIGRATE_ON_START=1` 时启动先迁移。Swagger：`http://127.0.0.1:$PORT_API/api/v1/docs`，OpenAPI：`/api/v1/openapi.json`。
+- **迁移**：`apps/api/src/db/migrations/0000_init.sql`（drizzle 生成）+ `0001_constraints.sql`（手写：COLLATE "C"、DEFERRABLE 唯一、只追加触发器、视图、授权）。迁移器持 `pg_advisory_lock(LOCK_NS.MIGRATION, 0)`；以 owner 连接（`MIGRATION_DATABASE_URL`），运行时用 `wms_app`（角色级 `transaction_timeout=30s`）。长事务用 `withLongTransaction(pool,'120s',fn)`。
+- **测试库**：`import { cloneTestDb, pgAvailable } from '../test/pg.ts'`，每个测试文件克隆自本 WS 模板；PG 未启动或 `WMS_SKIP_DB_TESTS=1` 时 DB 用例跳过。
+- **验收**：`pnpm verify` 在 main 全绿（Vitest：contracts 24、domain 25、api 含 DB 用例、api-client mock 10）；mock 驱动 admin/mobile 登录截图 `/workspace/wms3d-artifacts/m0b-mock-login-{admin,mobile}.png`。
