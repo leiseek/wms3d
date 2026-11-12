@@ -2,7 +2,7 @@ import pg from 'pg';
 import { CONTRACT_VERSION, routes } from '@wms3d/contracts';
 import type { ApiModule } from '../types.ts';
 
-/** ops 模块（tag 'ops'，归 ws-a1）：health/ready 由 Lead 在 M0b 实现；appVersion 待 A1。 */
+/** ops 模块（tag 'ops'，归 ws-a1）：health/ready（M0b）；appVersion 读环境（APP_LATEST_VERSION 等，08 §7）。 */
 export const opsModule: ApiModule = ({ routes: r, services }) => {
   r.register(routes.health, async () => ({
     status: 'ok' as const,
@@ -23,5 +23,16 @@ export const opsModule: ApiModule = ({ routes: r, services }) => {
     } finally {
       await client.end().catch(() => undefined);
     }
+  });
+
+  r.register(routes.appVersion, async () => {
+    const env = services.config.env ?? process.env;
+    const latest = env.APP_LATEST_VERSION?.trim() || '0.1.0';
+    return {
+      latest,
+      minSupported: env.APP_MIN_VERSION?.trim() || latest,
+      apkUrl: env.APP_APK_URL?.trim() || null,
+      releaseNotes: env.APP_RELEASE_NOTES?.trim() || null,
+    };
   });
 };

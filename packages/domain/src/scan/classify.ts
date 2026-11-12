@@ -23,12 +23,19 @@ export interface ClassifyResult {
   text: string;
 }
 
-/** 规范化扫码文本：trim、去 \r\n\t、去 AIM 符号标识前缀（]C1、]E0、]Q1 等）。 */
+/**
+ * 规范化扫码文本：去 \r\n\t 与其他 C0 控制字符（GS1 的 GS=0x1D 等）、trim、去 AIM 符号标识前缀（]C1、]E0、]Q1 等）。
+ * 注意：先去前缀再 trim，避免 "]C1 WH1.A01" 残留空格。
+ */
 export function normalizeScan(raw: string): string {
-  return raw
-    .replace(/[\r\n\t]/g, '')
-    .trim()
-    .replace(/^\][A-Za-z][0-9]/, '');
+  return (
+    raw
+      // eslint-disable-next-line no-control-regex
+      .replace(/[\x00-\x1f\x7f]/g, '')
+      .trim()
+      .replace(/^\][A-Za-z][0-9]/, '')
+      .trim()
+  );
 }
 
 /** 02 §3.2 的分类顺序（v2.1 M-N12）。 */
@@ -70,4 +77,19 @@ export function classifyScan(raw: string, ctx: ClassifyContext): ClassifyResult 
   const rack = ctx.lookupRackCode(up);
   if (rack) return { kind: 'RACK', entityId: rack, text };
   return { kind: 'UNKNOWN', text };
+}
+
+/**
+ * 服务端/缓存预取（WS-A1）：classifyScan 的查找都是精确匹配，这里给出它可能查询的全部键，
+ * 调用方一次批量取回后用同步 Map 构造 ClassifyContext（避免逐步串行查询）。
+ */
+export function scanLookupKeys(raw: string): { registry: string[]; codes: string[] } {
+  const text = normalizeScan(raw);
+  if (!text) return { registry: [], codes: [] };
+  const up = text.toUpperCase();
+  const registry = up === text ? [text] : [text, up];
+  const codes = [up];
+  const sp = splitPayload(up);
+  if (sp) codes.push(sp.code);
+  return { registry, codes: [...new Set(codes)] };
 }
