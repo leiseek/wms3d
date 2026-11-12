@@ -41,3 +41,13 @@ A1 的 verifier 填充后，`tokenExpSeconds()` 自动改用它，可删 JWT 载
 
 ## 7. 夜间任务启动
 `apps/api/src/jobs/index.ts` 的 `installJobs(app, pool)` 由 inventory 模块注册，在 `onListen` 时启动 node-cron（`WMS_JOBS=0` 关闭，`WMS_JOBS_TZ` 覆盖时区，缺省取首个仓库 timezone）。若 Lead 希望改由 `main.ts` 显式启动，可移动调用点。
+
+---
+**Lead 决定（2026-11-12 PT，contract-v1.2）**
+1. 无 DB 时不注册路由：**维持现状**（无 DB 时 A2 路由保持 501），作为书面行为接受，保留 `if (!db) return;`。生产环境必有 DB，这只影响外壳单测。
+2. `AuthContext.exp`：**接受**。`lib/auth.ts` 归 WS-A1，由 A1 加 `exp?: number` 并在 verifier 中填充；之后 A2 删除 JWT 载荷解析分支（ws-a1.md / ws-a2.md 已记）。
+3. 演示库存：**已做**。`apps/api` 新增 `db:seed:stock`；`scripts/db-reset-dev.sh` 末尾调用 seed-stock（`WMS_SEED_STOCK=0` 跳过），已实测 created=128、mismatches=0。
+4. mock 对齐：**已做**。OPERATOR 冲正违规 → 403 `FORBIDDEN`（`REVERSAL_NOT_ALLOWED` 只用于冲正 REVERSAL）；`closeCount` 改为 delta 型（variance 固定），余额不足 → 422 `COUNT_RECOUNT_REQUIRED`（context.lines）并标 needs_review；同步游标保持不透明，不改契约。
+5. digest 算法：**已写入** `SyncDigest.hash.describe()`；mock 用同一算法（浏览器可用的 sha256），mock 测试会用同步结果复算并比对。
+6. 备份状态来源：**接受**，键名 `ops_status['backup']` = `{lastLocalAt?, lastRemoteAt?, remoteConfigured?}`；已写入 ws-f.md，由 WS-F 的备份脚本写入。
+7. 夜间任务在 `onListen` 启动：**接受现状**（`WMS_JOBS=0` 关闭）。

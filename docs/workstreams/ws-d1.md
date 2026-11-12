@@ -51,3 +51,7 @@ pnpm check:ownership                        # 改动只能落在下方“独占�
 ## 备注
 - `apps/admin` 其余部分归 WS-B：只在 `features/layout-designer/` 内写代码；需要 antd 主题/路由改动请 WS-B 或 Lead 处理（contract request）。
 - 改 `core/` 的几何或编码会影响后端、3D、标签：任何黄金样例变化 = 契约变更，必须走 contract request。
+
+## Lead 更新 · contract-v1.2（2026-11-12 PT）
+- **新任务（来自 ws-a1-5，已接受）**：在 `validateLayout` 中以 `CODE_DUPLICATE`（ERROR，填充 rackKeys / codes）报告三类重复：① doc 内重复的 `racks[].key`；② 重复的 `zones[].code`；③ 展开后重复的货架编码（会撞 `racks unique(warehouse_id, code)`）。补单测；编辑器即时提示。合并后 WS-A1 会删除服务端的 `extraIssues` 补检。
+- 契约 v1.2 无布局相关变更；请 `git rebase main`。

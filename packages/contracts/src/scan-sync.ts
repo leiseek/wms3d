@@ -72,6 +72,10 @@ export const SyncDigest = z
     skus: z.number().int(),
     barcodes: z.number().int(),
     locations: z.number().int(),
-    hash: z.string(),
+    hash: z
+      .string()
+      .describe(
+        'v1.2（WS-A2-1）：sha256(lines.join("\\n")) 小写 hex；line = `${entity}|${id}|${updatedAt}`，entity ∈ barcode|location|sku，updatedAt 与 SyncPage 中完全相同（UTC 毫秒 ISO），按 (entity, id) 字节序升序；locations 仅本仓。客户端可用本地副本复算',
+      ),
   })
   .meta({ id: 'SyncDigest' });

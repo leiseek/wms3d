@@ -21,7 +21,7 @@ import {
   type MWarehouse,
   type MockStore,
 } from './store.ts';
-import { MockError, raw, type MockResponse } from './util.ts';
+import { byteCompare, MockError, raw, sha256Hex, type MockResponse } from './util.ts';
 
 export interface MockAuth {
   userId: string;
@@ -275,6 +275,7 @@ function countLineView(l: MCountLine, hide: boolean) {
   };
 }
 
+/** 照抄 @wms3d/labels 的 labelTemplates（contract-v1.2，WS-A1-3；07 §2）。RACK 只允许 rack-100x150。 */
 const LABEL_TEMPLATES = [
   {
     key: 'loc-100x50',
@@ -283,7 +284,7 @@ const LABEL_TEMPLATES = [
     widthMm: 100,
     heightMm: 50,
     sheet: null,
-    maxModules: { dpi203: 33, dpi300: 49 },
+    maxModules: { dpi203: 253, dpi300: 281 },
     supportsBarePayload: true,
   },
   {
@@ -293,17 +294,17 @@ const LABEL_TEMPLATES = [
     widthMm: 60,
     heightMm: 40,
     sheet: null,
-    maxModules: { dpi203: 25, dpi300: 37 },
+    maxModules: { dpi203: 230, dpi300: 230 },
     supportsBarePayload: true,
   },
   {
     key: 'loc-70x30',
-    name: '横梁 70×30',
+    name: '横梁窄标 70×30',
     kinds: ['LOCATION'],
     widthMm: 70,
     heightMm: 30,
     sheet: null,
-    maxModules: { dpi203: 21, dpi300: 29 },
+    maxModules: { dpi203: 264, dpi300: 259 },
     supportsBarePayload: true,
   },
   {
@@ -313,27 +314,27 @@ const LABEL_TEMPLATES = [
     widthMm: 100,
     heightMm: 150,
     sheet: null,
-    maxModules: { dpi203: 45, dpi300: 65 },
-    supportsBarePayload: false,
-  },
-  {
-    key: 'a4-3x8',
-    name: 'A4 3×8',
-    kinds: ['LOCATION', 'SKU'],
-    widthMm: 70,
-    heightMm: 37,
-    sheet: { cols: 3, rows: 8 },
     maxModules: null,
     supportsBarePayload: true,
   },
   {
+    key: 'a4-3x8',
+    name: 'A4 3×8（70×37mm）',
+    kinds: ['LOCATION', 'SKU'],
+    widthMm: 210,
+    heightMm: 297,
+    sheet: { cols: 3, rows: 8 },
+    maxModules: { dpi203: 270, dpi300: 270 },
+    supportsBarePayload: true,
+  },
+  {
     key: 'a4-2x7',
-    name: 'A4 2×7',
-    kinds: ['LOCATION', 'RACK', 'SKU'],
-    widthMm: 99,
-    heightMm: 38,
+    name: 'A4 2×7（99×38mm）',
+    kinds: ['LOCATION', 'SKU'],
+    widthMm: 210,
+    heightMm: 297,
     sheet: { cols: 2, rows: 7 },
-    maxModules: null,
+    maxModules: { dpi203: 254, dpi300: 282 },
     supportsBarePayload: true,
   },
   {
@@ -343,8 +344,8 @@ const LABEL_TEMPLATES = [
     widthMm: 60,
     heightMm: 40,
     sheet: null,
-    maxModules: { dpi203: 25, dpi300: 37 },
-    supportsBarePayload: true,
+    maxModules: { dpi203: 230, dpi300: 230 },
+    supportsBarePayload: false,
   },
 ] as const;
 
@@ -471,7 +472,13 @@ export const handlers: Handlers = {
   changePassword: (c) => {
     const u = need(c.store.users.get(c.auth.userId));
     if (u.password !== c.body.currentPassword)
-      throw new MockError('UNAUTHENTICATED', '当前密码不正确');
+      throw new MockError('VALIDATION_FAILED', '当前密码不正确', {
+        errors: [{ path: 'currentPassword', message: '当前密码不正确' }],
+      });
+    if (c.body.newPassword === c.body.currentPassword)
+      throw new MockError('VALIDATION_FAILED', '新密码不能与当前密码相同', {
+        errors: [{ path: 'newPassword', message: '新密码不能与当前密码相同' }],
+      });
     u.password = c.body.newPassword;
     u.mustChangePassword = false;
     u.updatedAt = c.store.iso();
@@ -1067,7 +1074,16 @@ export const handlers: Handlers = {
     const locations = [...s.locations.values()].filter(
       (l) => l.warehouseId === c.warehouseId,
     ).length;
-    return { skus, barcodes, locations, hash: `mock-${skus}-${barcodes}-${locations}` };
+    // 与真实 API 同一算法（contract-v1.2 SyncDigest.hash）
+    const lines: string[] = [];
+    for (const k of s.skus.values()) {
+      lines.push(`sku|${k.id}|${k.updatedAt}`);
+      for (const b of k.barcodes) lines.push(`barcode|${b.id}|${b.updatedAt}`);
+    }
+    for (const l of s.locations.values())
+      if (l.warehouseId === c.warehouseId) lines.push(`location|${l.id}|${l.updatedAt}`);
+    lines.sort(byteCompare);
+    return { skus, barcodes, locations, hash: sha256Hex(lines.join('\n')) };
   },
 
   // ---------- 库存 ----------
@@ -1182,7 +1198,7 @@ export const handlers: Handlers = {
         tooOld ||
         orig.type === 'COUNT_ADJUST'
       )
-        throw new MockError('REVERSAL_NOT_ALLOWED');
+        throw new MockError('FORBIDDEN', '操作员只能冲正本人本设备 10 分钟内的单据（WS-A2-1）');
     }
     const w = wh(s, orig.warehouseId);
     const deltas = orig.lines.map((l) => ({
@@ -1532,16 +1548,37 @@ export const handlers: Handlers = {
       throw new MockError('COUNT_RECOUNT_REQUIRED', undefined, {
         context: {
           locationIds: [...new Set(lines.filter((l) => l.needsReview).map((l) => l.locationId))],
+          lines: [],
         },
       });
     const w = wh(s, t.warehouseId);
+    // delta 型调整：delta = 提交时固定的 variance（countedQty − systemQtyAtCount），与真实 API 一致（WS-A2-1）
     const deltas = lines
       .map((l) => ({
+        line: l,
         loc: s.locations.get(l.locationId)!,
         sku: s.skus.get(l.skuId)!,
-        qty: l.countedQty - (s.balances.get(balanceKey(l.locationId, l.skuId))?.onHand ?? 0),
+        qty: l.countedQty - (l.systemQtyAtCount ?? 0),
       }))
       .filter((d) => d.qty !== 0);
+    const short = deltas
+      .map((d) => ({ d, available: s.balances.get(balanceKey(d.loc.id, d.sku.id))?.onHand ?? 0 }))
+      .filter((x) => x.available + x.d.qty < 0);
+    if (short.length) {
+      const bad = new Set(short.map((x) => x.d.loc.id));
+      for (const l of lines) if (bad.has(l.locationId)) l.needsReview = true;
+      throw new MockError('COUNT_RECOUNT_REQUIRED', '关闭时余额不足，相关仓位需要重盘', {
+        context: {
+          locationIds: [...bad],
+          lines: short.map((x) => ({
+            locationId: x.d.loc.id,
+            skuId: x.d.sku.id,
+            variance: x.d.qty,
+            available: x.available,
+          })),
+        },
+      });
+    }
     let adjustTxnId: string | null = null;
     if (deltas.length) {
       const tl = applyDeltas(s, w, deltas, {});
@@ -1575,14 +1612,36 @@ export const handlers: Handlers = {
     items: LABEL_TEMPLATES.map((t) => ({ ...t, kinds: [...t.kinds] })),
   }),
   renderLabels: (c) => {
+    const tpl = LABEL_TEMPLATES.find((t) => t.key === c.body.template)!;
+    if (!(tpl.kinds as readonly string[]).includes(c.body.kind))
+      throw new MockError('VALIDATION_FAILED', `模板 ${tpl.key} 不支持 ${c.body.kind}`, {
+        errors: [{ path: 'body.kind', message: '模板与标签类型不匹配' }],
+      });
+    if (c.body.format === 'ZPL' && tpl.sheet)
+      throw new MockError('VALIDATION_FAILED', 'A4 多联模板不支持 ZPL', {
+        errors: [{ path: 'body.format', message: 'A4 多联模板不支持 ZPL' }],
+      });
+    const count = c.body.ids?.length ?? 1;
+    const done = (c.body.reprintRequestIds ?? []).length;
     if (c.body.reprintRequestIds)
       for (const r of c.store.reprints)
         if (c.body.reprintRequestIds.includes(r.id))
           Object.assign(r, { status: 'DONE', doneAt: c.store.iso() });
+    const headers = { 'x-label-count': String(count), 'x-reprints-done': String(done) };
+    if (c.body.format === 'ZPL')
+      return raw(
+        200,
+        {
+          kind: 'text',
+          value: '^XA^FO20,20^A0N,40,40^FDMOCK^FS^XZ\n'.repeat(count),
+          contentType: 'application/vnd.zebra.zpl; charset=utf-8',
+        },
+        { ...headers, 'content-disposition': 'inline; filename="labels.zpl"' },
+      );
     return raw(
       200,
       { kind: 'text', value: MOCK_PDF, contentType: 'application/pdf' },
-      { 'content-disposition': 'inline; filename="labels.pdf"' },
+      { ...headers, 'content-disposition': 'inline; filename="labels.pdf"' },
     );
   },
   calibrationPdf: () => raw(200, { kind: 'text', value: MOCK_PDF, contentType: 'application/pdf' }),

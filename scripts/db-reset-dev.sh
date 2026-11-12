@@ -10,3 +10,7 @@ bash "$ROOT/scripts/dev-db.sh" drop "$DB" >/dev/null 2>&1 || true
 bash "$ROOT/scripts/dev-db.sh" create "$DB"
 (cd "$ROOT/apps/api" && node --experimental-strip-types src/db/migrate.ts "$MIGRATION_DATABASE_URL")
 (cd "$ROOT/apps/api" && node --experimental-strip-types src/db/seed-demo.ts "$DATABASE_URL")
+# v1.2（WS-A2-1）：演示库存经 postTransaction 写入（WMS_SEED_STOCK=0 跳过）
+if [ "${WMS_SEED_STOCK:-1}" != 0 ] && [ -f "$ROOT/apps/api/src/modules/inventory/seed-stock.ts" ]; then
+  (cd "$ROOT/apps/api" && node --experimental-strip-types src/modules/inventory/seed-stock.ts "$DATABASE_URL")
+fi

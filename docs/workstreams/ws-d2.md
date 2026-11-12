@@ -50,3 +50,11 @@ pnpm check:ownership                        # 改动只能落在下方“独占�
 ## 备注
 - 不依赖真实 API；playground 只读 mock。截图放 `/workspace/wms3d-artifacts/ws-d2/`。
 - 需要大规模（20k）测试布局：在包内用 `@wms3d/domain` 的 `expandLayout` 生成，不要改 demo 数据。
+
+## Lead 更新 · contract-v1.2（2026-11-12 PT）
+已合并到 main：twin3d v0（eea53c8）与 M4 完整范围（d283d62）。
+
+### M4.5 打磨项
+1. **等轴视角下占用着色发灰、偏淡**：在 isometric 机位中，有货 / 空 / 满的颜色饱和度不够、对比偏弱（可能是光照、tone mapping 或材质颜色空间造成的）。请检查 `colorSpace`/`toneMapping` 与环境光强度，确保图例色与 3D 中看到的颜色一致，并在 3 个固定机位截图对比。
+2. **图例文案 “中（50%）” 读起来别扭**：改为表达占用区间，例如 “半满（30–70%）”，或同时给出档位名与区间（“低 <30% / 中 30–70% / 高 >70%”），与 06 §4 的分档一致；2D 降级的图例同步修改。
+3. **troika 类型声明（来自 ws-c-1 #3）**：让 `troika.d.ts` 从 `src/index.ts` 可达（例如 `/// <reference>` 或模块声明随导出），之后 apps/mobile 可以去掉 tsconfig 中的 include。

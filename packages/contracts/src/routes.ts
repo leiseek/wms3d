@@ -206,7 +206,7 @@ export const routes = {
     scope: NONE,
     body: ChangePasswordRequest,
     responses: { 204: null },
-    errors: ['VALIDATION_FAILED', 'UNAUTHENTICATED'],
+    errors: ['VALIDATION_FAILED'], // v1.2（WS-A1-1）：当前口令错误 / 新旧相同 → 400，errors[].path = currentPassword / newPassword
     owner: 'ws-a1',
   }),
 
@@ -1020,12 +1020,14 @@ export const routes = {
     id: 'renderLabels',
     method: 'POST',
     path: '/labels/render',
-    summary: '渲染标签 PDF / ZPL（流式，≤ 5000 张）',
+    summary:
+      '渲染标签 PDF / ZPL（流式，≤ 5000 张）。format=ZPL → application/vnd.zebra.zpl（实验；A4 多联模板 400）。响应头 X-Label-Count、X-Reprints-Done',
     tag: 'labels',
     roles: MGR,
     scope: { from: 'body', field: 'warehouseId' },
     body: LabelRenderRequest,
     produces: 'application/pdf',
+    alsoProduces: ['application/vnd.zebra.zpl'],
     responses: { 200: null },
     errors: ['VALIDATION_FAILED'],
     owner: 'ws-a1',

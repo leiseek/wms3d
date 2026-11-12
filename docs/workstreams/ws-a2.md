@@ -68,3 +68,8 @@ pnpm check:ownership                        # 改动只能落在下方“独占�
 - `v_sku_stock`、`v_location_occupancy` 视图与只追加触发器已在迁移 0001；需要新索引/列 → contract request（schema 归 Lead）。
 - mock 的库存引擎（`packages/api-client/src/mock/handlers.ts`）可作为行为参考，但以 02 为准。
 - 外壳（鉴权、守卫、错误模型）归 WS-A1；你只需在模块内 `routes.register(...)`。A1 合并真实 verifier 之前，测试里可用 `buildApp({ configure })` 注入测试 verifier。
+
+## Lead 更新 · contract-v1.2（2026-11-12 PT）
+已合并到 main：ws-a2 M1（57d93db）。请 `git rebase main`。
+- ws-a2-1 的决定见请求文件末尾：#1 维持 501 shim；#2 由 A1 加 `AuthContext.exp`，A1 合并后删除 JWT 载荷解析分支；#3 `db:seed:stock` 已加，`pnpm db:reset:dev` 会自动写演示库存；#4、#5 mock 已对齐（FORBIDDEN、closeCount 余额不足、digest 同算法）；#6 backup 键名已转给 WS-F；#7 onListen 维持现状。
+- 联合验收 **#5** 在 main 上通过（6 轮交错，“入库先赢”和“发布先赢”两条路径都覆盖到，不存在停用仓位上有库存）：`apps/api/src/test/joint-5.test.ts`。

@@ -41,3 +41,14 @@
 
 ## contract-v1.1 · 2026-11-12（PT）
 - 增量（向后兼容）：`@wms3d/contracts` 导出 `LabelKind`、`LabelTemplate` 类型（WS-E-1）；`CONTRACT_VERSION` 1.1.0。无 schema、端点、数据库变化。
+
+## contract-v1.2 · 2026-11-12（PT）
+批处理契约请求 ws-a1-1…5、ws-a2-1、ws-c-1（决定写在各请求文件末尾）。
+- `changePassword` 当前口令错误 / 新旧相同 → 400 `VALIDATION_FAILED`（原 401）。
+- `LabelRenderRequest.warehouseId` 改为**必填**（原来可选但作用域取自它，缺省一律 404，所以没有可用的旧调用方）；`renderLabels` 增加 `alsoProduces: application/vnd.zebra.zpl`（RouteSpec 新字段 `alsoProduces`，OpenAPI 列出两种内容类型）；A4 + ZPL 400；响应头 `X-Label-Count` / `X-Reprints-Done`。
+- `SyncDigest.hash` 算法写入契约描述（sha256，客户端可复算）。
+- mock：标签模板照抄 `@wms3d/labels`；ZPL 输出；改密 400；OPERATOR 冲正违规 → 403 `FORBIDDEN`；盘点关闭改为 delta 型并补齐“余额不足 → 422 `COUNT_RECOUNT_REQUIRED` + needs_review”；digest 同算法。
+- 脚本：`apps/api` `db:seed:stock`；`pnpm db:reset:dev` 末尾写演示库存（`WMS_SEED_STOCK=0` 跳过）；`apps/mobile` `e2e`。
+- 登录锁定 MVP 用进程内实现（03 §2 已注明），落库版本排到 v1.1。
+- 联合验收 #5（布局发布停用 × 入库并发）：`apps/api/src/test/joint-5.test.ts`，在 main 上通过。
+- `CONTRACT_VERSION` 1.2.0。

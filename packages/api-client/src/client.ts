@@ -139,7 +139,9 @@ export function createApiClient(opts: ApiClientOptions): ApiClient {
     };
     const url = base + buildPath(spec, a.params, a.query);
     const send = async (): Promise<Response> => {
-      const headers = new Headers({ accept: spec.produces ?? 'application/json' });
+      const headers = new Headers({
+        accept: [spec.produces ?? 'application/json', ...(spec.alsoProduces ?? [])].join(', '),
+      });
       const token = opts.getAccessToken();
       if (token) headers.set('authorization', `Bearer ${token}`);
       if (a.idempotencyKey) headers.set('idempotency-key', a.idempotencyKey);

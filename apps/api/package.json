@@ -12,6 +12,7 @@
     "db:migrate:url": "node --experimental-strip-types src/db/migrate.ts",
     "db:generate": "drizzle-kit generate",
     "db:seed:demo": "node --env-file-if-exists=../../.env.local --experimental-strip-types src/db/seed-demo.ts",
+    "db:seed:stock": "node --env-file-if-exists=../../.env.local --experimental-strip-types src/modules/inventory/seed-stock.ts",
     "db:reset:dev": "bash ../../scripts/db-reset-dev.sh"
   },
   "dependencies": {

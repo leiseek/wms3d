@@ -35,9 +35,9 @@ Fastify `preHandler` 统一解析并校验 `user_warehouses`（或 `all_warehous
 | 刷新 | `POST /auth/refresh` 轮换；**宽限窗口 60s**（v2.1，B-N13/M-N17：服务端只存哈希，无法"返回同一个新 token"）：旧 token 在被替换后 60s 内、同 `device_id` 再次使用 → **签发一个兄弟 token**（同 family，`sibling_of` = 首个替换 token），两者都有效，后续各自独立轮换；超出窗口或不同设备 → 撤销整个 family（M7）。测试：并发双刷新都成功、跨设备重用撤销 family |
 | 客户端 | refresh **single-flight**（全局互斥，所有 401 等待同一次刷新） |
 | 登出 | `POST /auth/logout` 撤销 family |
-| 改密 | `POST /me/password`；`must_change_password` 时除此端点外全部返回 403 `PASSWORD_CHANGE_REQUIRED` |
+| 改密 | `POST /me/password`；`must_change_password` 时除此端点外全部返回 403 `PASSWORD_CHANGE_REQUIRED`；当前口令错误或新旧相同 → **400 `VALIDATION_FAILED`**（`errors[].path` = `currentPassword` / `newPassword`；不用 401，避免触发客户端刷新，contract-v1.2 WS-A1-1） |
 | 设备 | 库存写接口校验 `devices.disabled_at`（60s 缓存），禁用 → 403 `DEVICE_DISABLED`（D36） |
-| 限流 | 登录 5 次/分钟/账号+IP；失败 10 次锁 15 分钟；登录失败审计按 IP+账号聚合（1 分钟 1 条） |
+| 限流 | 登录 5 次/分钟/账号+IP；失败 10 次锁 15 分钟；登录失败审计按 IP+账号聚合（1 分钟 1 条）。**MVP 实现为进程内计数**（`apps/api/src/modules/auth/limiter.ts`）：单进程部署有效，进程重启清零——书面接受（WS-A1-4）；落库的 `login_lockouts`（跨重启/多实例）列为 v1.1 |
 
 ## 3. 错误模型（RFC 9457）
 ```json
@@ -159,7 +159,7 @@ Fastify `preHandler` 统一解析并校验 `user_warehouses`（或 `all_warehous
 ### 标签、看板、审计、事件、运维
 | 方法 | 路径 | 说明 |
 |---|---|---|
-| POST | /labels/render `{template, kind, ids[]|filter, format: PDF|ZPL, startCell?, offsetMm?}` | PDF / ZPL（实验性） |
+| POST | /labels/render `{template, kind, warehouseId, ids[]|filter, format: PDF|ZPL, dpi, startCell?, offsetMm?, reprintRequestIds?}` | `application/pdf`；`format=ZPL` → `application/vnd.zebra.zpl; charset=utf-8`（实验性，A4 多联模板 400）；kind 必须在模板 `kinds` 内（RACK 只用 `rack-100x150`）；响应头 `X-Label-Count`、`X-Reprints-Done`。`warehouseId` 必填（SKU 标签也带当前仓库，contract-v1.2 WS-A1-2） |
 | GET | /labels/templates · /labels/calibration.pdf?template= | 模板与校准页 |
 | GET/POST | /label-reprint-requests | 移动端提交补打请求 → PC 打印队列（M33） |
 | GET | /dashboard?warehouseId= | |

@@ -7,3 +7,6 @@
   - A：`warehouseId: Id` 改为必填（SKU 标签也带当前仓库，用于审计/补打队列归属）。不改服务端。
   - B：scope 改为 resource/自定义：kind=SKU 时 scope none。需要 RouteRegistry 支持条件 scope（Lead 所有）。
 - 另：`renderLabels.produces` 只有 `application/pdf`；服务端已接 `@wms3d/labels` 的实验 ZPL，`format=ZPL` 时返回 `application/vnd.zebra.zpl; charset=utf-8`（A4 多联模板 400）。建议 produces/文档补上 ZPL，并记录响应头 `X-Label-Count`、`X-Reprints-Done`。
+
+---
+**Lead 决定（2026-11-12 PT，contract-v1.2）**：**接受方案 A**：`LabelRenderRequest.warehouseId` 改为必填（SKU 标签也带当前仓库）。原来缺省会一律 404，所以没有可用的旧调用方，按增量处理。另加 `alsoProduces: [application/vnd.zebra.zpl]`（RouteSpec 新字段，OpenAPI 列两种内容类型）；A4 + ZPL 仍返回 400；03 §5 写明响应头 `X-Label-Count` / `X-Reprints-Done`。mock 已支持 ZPL 和这些响应头。WS-A1：如果代码里有 `warehouseId` 缺省分支，可以删掉。
