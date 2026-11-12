@@ -1,0 +1,10 @@
+[Unit]
+Description=wms3d 每日 02:00（仓库时区）备份
+
+[Timer]
+OnCalendar=*-*-* 02:00:00 @TZ@
+Persistent=true
+RandomizedDelaySec=5min
+
+[Install]
+WantedBy=timers.target

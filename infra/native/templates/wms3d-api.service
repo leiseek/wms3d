@@ -1,0 +1,26 @@
+[Unit]
+Description=wms3d API (Fastify, Node 24)
+After=network.target wms3d-pg.service
+Requires=wms3d-pg.service
+StartLimitIntervalSec=0
+
+[Service]
+Type=simple
+User=wms3d
+Group=wms3d
+WorkingDirectory=@PREFIX@/app/apps/api
+EnvironmentFile=@PREFIX@/etc/.env
+# 启动时迁移（持 advisory lock，D38）；PG 未就绪时进程退出，由 Restart 重试
+ExecStart=@NODE@ --experimental-strip-types src/main.ts
+Restart=on-failure
+RestartSec=3
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectSystem=strict
+ProtectHome=true
+ReadWritePaths=@PREFIX@/logs
+CapabilityBoundingSet=
+LimitNOFILE=65536
+
+[Install]
+WantedBy=multi-user.target

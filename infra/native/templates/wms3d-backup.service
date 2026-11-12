@@ -1,0 +1,20 @@
+[Unit]
+Description=wms3d 每日备份（pg_dump -Fc + 保留策略 + 可选异地）
+After=wms3d-pg.service
+Requires=wms3d-pg.service
+
+[Service]
+Type=oneshot
+User=wms3d
+Group=wms3d
+Environment=BACKUP_CONFIG=@PREFIX@/etc/backup.env
+Environment=PATH=@PG_BIN@:@NODE_DIR@:/usr/local/bin:/usr/bin:/bin
+# 退出码 3（本地成功、异地失败）使本单元失败 → 便于告警；看板同时显示红色警告
+ExecStart=/bin/bash @PREFIX@/scripts/backup.sh --db @DB@ --dir @PREFIX@/backups
+Nice=10
+IOSchedulingClass=idle
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectSystem=strict
+ProtectHome=true
+ReadWritePaths=@PREFIX@/backups @PREFIX@/logs
