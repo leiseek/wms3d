@@ -30,8 +30,7 @@ export function layoutApi(api: ApiClient, warehouseId: string) {
     validate: () => api.r.validateLayout({ params, body: {} }),
     publish: (rowVersion: number, confirmRecode: boolean) =>
       api.r.publishLayout({ params, body: { rowVersion, confirmRecode } }),
-    locationsOfRack: (rack: string) =>
-      api.r.listLocations({ params, query: { rack, limit: 500 } as never }),
+    locationsOfRack: (rack: string) => api.r.listLocations({ params, query: { rack, limit: 500 } }),
     bulkPatch: (ids: string[], patch: { isActive?: boolean; maxQty?: number | null }) =>
       api.r.bulkPatchLocations({ params, body: { ids, patch } }),
   };
