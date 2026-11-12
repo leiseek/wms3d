@@ -89,7 +89,7 @@ export async function createUserLike(
 ): Promise<string> {
   const r = await pool.query<{ id: string }>(
     `INSERT INTO users (username, display_name, role, all_warehouses, password_hash, must_change_password)
-     SELECT $1, $1, $2, false, password_hash, false FROM users WHERE username = 'admin' RETURNING id`,
+     SELECT $1::text, $1::text, $2::text, false, password_hash, false FROM users WHERE username = 'admin' RETURNING id`,
     [username, role],
   );
   const id = r.rows[0]!.id;
