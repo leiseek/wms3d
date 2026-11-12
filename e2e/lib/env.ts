@@ -1,0 +1,23 @@
+/**
+ * e2e 运行参数（docs/workstreams/ws-f.md）。ws-f 端口段：API 4700 · admin 4710 · mobile 4720 · 额外 4730–4799。
+ * e2e 自己起的后端用 4730（real）/ 4731（mock），不占用开发者手动 `pnpm dev:api` / `pnpm mock` 的 4700。
+ */
+import { fileURLToPath } from 'node:url';
+
+export type Target = 'mock' | 'real';
+
+export const ROOT = fileURLToPath(new URL('../../', import.meta.url));
+export const STATE_DIR = fileURLToPath(new URL('../.state/', import.meta.url));
+export const STATE_FILE = `${STATE_DIR}state.json`;
+
+export const target: Target = process.env.E2E_TARGET === 'real' ? 'real' : 'mock';
+export const ports = {
+  real: Number(process.env.E2E_PORT_REAL ?? 4730),
+  mock: Number(process.env.E2E_PORT_MOCK ?? 4731),
+  admin: Number(process.env.E2E_PORT_ADMIN ?? 4710),
+  mobile: Number(process.env.E2E_PORT_MOBILE ?? 4720),
+};
+/** 已有后端（例如 lead 的集成环境）：设置后不再自起，只跑用例。 */
+export const externalBaseUrl = process.env.E2E_BASE_URL_EXTERNAL;
+export const wantUi = process.env.E2E_UI === '1';
+export const WS = 'ws-f';
