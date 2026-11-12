@@ -7,6 +7,7 @@ export const LabelTemplateKey = z
   .meta({ id: 'LabelTemplateKey' });
 export type LabelTemplateKey = z.infer<typeof LabelTemplateKey>;
 export const LabelKind = z.enum(['LOCATION', 'RACK', 'SKU']).meta({ id: 'LabelKind' });
+export type LabelKind = z.infer<typeof LabelKind>;
 
 export const LabelTemplate = z
   .object({
@@ -23,6 +24,7 @@ export const LabelTemplate = z
     supportsBarePayload: z.boolean(),
   })
   .meta({ id: 'LabelTemplate' });
+export type LabelTemplate = z.infer<typeof LabelTemplate>;
 
 export const LabelRenderRequest = z
   .object({

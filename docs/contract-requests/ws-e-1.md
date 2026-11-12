@@ -12,3 +12,6 @@ export type LabelTemplate = z.infer<typeof LabelTemplate>;
 
 - schema 无需改动，无兼容性风险。
 - 合并后 WS-E 会删掉库内重复的 `LabelKind` / `TemplateSpec` 手写类型，改为直接引用 contracts。
+
+---
+**Lead 决定（2026-11-12 PT）：接受，已合并为 contract-v1.1。** 纯类型导出、无 schema/运行时变化，属安全的增量变更。`packages/contracts/src/labels.ts` 新增 `export type LabelKind`、`export type LabelTemplate`；`CONTRACT_VERSION` → `1.1.0`（OpenAPI `info.version` 与 mock health 同步）。WS-E 可 rebase 后删除库内重复的手写类型。
