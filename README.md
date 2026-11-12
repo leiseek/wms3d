@@ -3,7 +3,7 @@
 面向中小仓库的轻量 WMS：PC 管理后台 + Android 平板（蓝牙扫码枪 HID/SPP）+ Android 手机（摄像头扫码），
 支持仓位/货架设计、标签打印、扫码快速入出库，以及移动端 3D 数字孪生实时库存展示与 SKU 定位。
 
-当前阶段：**Phase 1 设计（v2，已处理 R1 评审）**。设计文档见 [`docs/`](docs/)：
+当前阶段：**M0a 完成（工具链 + 单仓骨架 + Android 外壳 + 隔离脚本）**；设计 v2.1（已处理 R1/R2 评审），契约待 M0b 冻结。。设计文档见 [`docs/`](docs/)：
 
 | 文档 | 内容 |
 |---|---|
@@ -22,3 +22,18 @@
 | [sources](docs/sources.md) | 调研参考资料 |
 | [reviews/](docs/reviews/) | 评审意见与处理结果（R1-resolution） |
 | [CHANGELOG-design](docs/CHANGELOG-design.md) | 设计版本记录 |
+
+## 快速开始
+
+```bash
+source /opt/tools/env.sh
+pnpm install
+pnpm verify                 # lint + typecheck + test + build
+scripts/dev-db.sh start     # 本机 PG17（127.0.0.1:55432）
+pnpm dev:api                # http://127.0.0.1:4000/api/v1/health
+pnpm dev:admin              # http://127.0.0.1:4010
+pnpm apk:debug              # → /workspace/wms3d-artifacts/wms3d-debug-latest.apk
+scripts/wt.sh create ws-a   # 工作流隔离：worktree + 数据库 + 端口
+```
+
+详见 [docs/dev-setup.md](docs/dev-setup.md)。
