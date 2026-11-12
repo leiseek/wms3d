@@ -1,4 +1,4 @@
-import { useEffect } from 'react';
+import { lazy, Suspense, useEffect } from 'react';
 import { BigButton, RejectOverlay, StatusChip } from '@wms3d/ui';
 import { getServices, useUi } from './app/services.ts';
 import { useIsTablet } from './app/hooks.ts';
@@ -6,8 +6,10 @@ import { LoginPage } from './pages/LoginPage.tsx';
 import { ServerConfigPage } from './pages/ServerConfigPage.tsx';
 import { WorkPage } from './pages/WorkPage.tsx';
 import { QueryPage } from './pages/QueryPage.tsx';
-import { TwinPage } from './pages/TwinPage.tsx';
 import { MorePage } from './pages/MorePage.tsx';
+
+// three.js 体积大：3D Tab 首次打开时才加载（冷启动更快）
+const TwinPage = lazy(() => import('./pages/TwinPage.tsx').then((m) => ({ default: m.TwinPage })));
 
 const TABS = [
   { id: 'work', label: '作业' },
@@ -159,7 +161,11 @@ function Shell() {
           <WorkPage active={tab === 'work'} />
         </div>
         {tab === 'query' && <QueryPage active />}
-        {tab === 'twin' && <TwinPage active />}
+        {tab === 'twin' && (
+          <Suspense fallback={<div className="splash">加载 3D…</div>}>
+            <TwinPage active />
+          </Suspense>
+        )}
         {tab === 'more' && <MorePage active />}
       </main>
       <nav className="tabbar">
