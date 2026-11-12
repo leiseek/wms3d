@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- docs/04-mobile.md §1：release 禁止明文；信任系统 + 用户安装的 CA（内部 CA 部署路径），
+     配合配置二维码 SPKI 指纹启动校验（M3）。 -->
+<network-security-config>
+    <base-config cleartextTrafficPermitted="false">
+        <trust-anchors>
+            <certificates src="system" />
+            <certificates src="user" />
+        </trust-anchors>
+    </base-config>
+</network-security-config>

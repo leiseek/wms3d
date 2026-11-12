@@ -1,0 +1,7 @@
+<?xml version='1.0' encoding='utf-8'?>
+<resources>
+    <string name="app_name">wms3d</string>
+    <string name="title_activity_main">wms3d</string>
+    <string name="package_name">com.wms3d.app</string>
+    <string name="custom_url_scheme">com.wms3d.app</string>
+</resources>
