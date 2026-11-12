@@ -1,67 +1,129 @@
-import { useState } from 'react';
-import { Alert, Button, Card, ConfigProvider, Form, Input, Layout, Result, Typography } from 'antd';
+import { lazy, Suspense, useEffect, type ReactNode } from 'react';
+import { App as AntApp, ConfigProvider, Result, Spin } from 'antd';
 import zhCN from 'antd/locale/zh_CN';
-import type { Me } from '@wms3d/contracts';
+import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { ApiError } from '@wms3d/api-client';
-import { api, deviceId, setAccessToken } from './api';
+import { createBrowserRouter, Navigate, Outlet, RouterProvider, useLocation } from 'react-router';
+import { onSessionExpired } from './api';
+import { useSession } from './session';
+import { pathAllowed } from './lib/rbac';
+import { AppLayout } from './AppLayout';
 
-/** M0b 外壳：登录冒烟页（可由 `pnpm mock` 或真实 API 驱动）。功能页面从 M2（WS-B）开始。 */
+const LoginPage = lazy(() => import('./pages/LoginPage'));
+const ChangePasswordPage = lazy(() => import('./pages/ChangePasswordPage'));
+const DashboardPage = lazy(() => import('./pages/DashboardPage'));
+const SkusPage = lazy(() => import('./pages/SkusPage'));
+const LocationsPage = lazy(() => import('./pages/LocationsPage'));
+const WarehousesPage = lazy(() => import('./pages/WarehousesPage'));
+const RackTypesPage = lazy(() => import('./pages/RackTypesPage'));
+const StockPage = lazy(() => import('./pages/StockPage'));
+const MovementsPage = lazy(() => import('./pages/MovementsPage'));
+const TransactionsPage = lazy(() => import('./pages/TransactionsPage'));
+const AdjustPage = lazy(() => import('./pages/AdjustPage'));
+const LabelsPage = lazy(() => import('./pages/LabelsPage'));
+const UsersPage = lazy(() => import('./pages/UsersPage'));
+const AuditPage = lazy(() => import('./pages/AuditPage'));
+const TwinPage = lazy(() => import('./pages/TwinPage'));
+// /layout：WS-D1 合并前挂占位；合并后改为 import('./features/layout-designer/index.tsx') 的 LayoutDesignerPage。
+const LayoutPage = lazy(() => import('./features/layout-designer-shim/LayoutDesignerShim'));
+
+export const queryClient = new QueryClient({
+  defaultOptions: {
+    queries: {
+      staleTime: 15_000,
+      refetchOnWindowFocus: false,
+      retry: (n, e) =>
+        n < 2 && (!(e instanceof ApiError) || e.code === 'NETWORK' || e.status >= 500),
+    },
+  },
+});
+
+const Loading = () => (
+  <div style={{ padding: 48, textAlign: 'center' }}>
+    <Spin />
+  </div>
+);
+
+/** 未登录 → /login；必须改密 → /change-password；无权限路径 → 403。 */
+function Guard({ children }: { children: ReactNode }) {
+  const { status, me } = useSession();
+  const loc = useLocation();
+  if (status === 'booting') return <Loading />;
+  if (status !== 'authenticated' || !me)
+    return <Navigate to="/login" replace state={{ from: loc.pathname }} />;
+  if (me.mustChangePassword) return <Navigate to="/change-password" replace />;
+  if (!pathAllowed(me.role, loc.pathname))
+    return <Result status="403" title="没有权限" subTitle="当前角色不能访问此页面" />;
+  return <>{children}</>;
+}
+
+const page = (el: ReactNode) => (
+  <Guard>
+    <Suspense fallback={<Loading />}>{el}</Suspense>
+  </Guard>
+);
+
+const router = createBrowserRouter([
+  {
+    path: '/login',
+    element: (
+      <Suspense fallback={<Loading />}>
+        <LoginPage />
+      </Suspense>
+    ),
+  },
+  {
+    path: '/change-password',
+    element: (
+      <Suspense fallback={<Loading />}>
+        <ChangePasswordPage />
+      </Suspense>
+    ),
+  },
+  {
+    element: (
+      <AppLayout>
+        <Outlet />
+      </AppLayout>
+    ),
+    children: [
+      { path: '/', element: page(<DashboardPage />) },
+      { path: '/stock', element: page(<StockPage />) },
+      { path: '/movements', element: page(<MovementsPage />) },
+      { path: '/transactions', element: page(<TransactionsPage />) },
+      { path: '/adjust', element: page(<AdjustPage />) },
+      { path: '/twin', element: page(<TwinPage />) },
+      { path: '/skus', element: page(<SkusPage />) },
+      { path: '/locations', element: page(<LocationsPage />) },
+      { path: '/warehouses', element: page(<WarehousesPage />) },
+      { path: '/rack-types', element: page(<RackTypesPage />) },
+      { path: '/layout', element: page(<LayoutPage />) },
+      { path: '/labels', element: page(<LabelsPage />) },
+      { path: '/users', element: page(<UsersPage />) },
+      { path: '/audit', element: page(<AuditPage />) },
+      { path: '*', element: <Result status="404" title="页面不存在" /> },
+    ],
+  },
+]);
+
 export function App() {
-  const [me, setMe] = useState<Me | null>(null);
-  const [error, setError] = useState<string | null>(null);
-  const [loading, setLoading] = useState(false);
-
-  const onFinish = async (v: { username: string; password: string }) => {
-    setLoading(true);
-    setError(null);
-    try {
-      const r = await api.r.authLogin({ body: { ...v, deviceId: deviceId(), client: 'web' } });
-      setAccessToken(r.accessToken);
-      setMe(await api.r.me({}));
-    } catch (e) {
-      setError(e instanceof ApiError ? e.message : String(e));
-    } finally {
-      setLoading(false);
-    }
-  };
-
+  const boot = useSession((s) => s.boot);
+  const expire = useSession((s) => s.expire);
+  useEffect(() => {
+    onSessionExpired(() => {
+      queryClient.clear();
+      expire();
+    });
+    void boot();
+    return () => onSessionExpired(null);
+  }, [boot, expire]);
   return (
-    <ConfigProvider locale={zhCN}>
-      <Layout style={{ minHeight: '100vh' }}>
-        <Layout.Header style={{ color: '#fff' }}>wms3d · 3D 数字孪生 WMS</Layout.Header>
-        <Layout.Content style={{ padding: 24, display: 'flex', justifyContent: 'center' }}>
-          {me ? (
-            <Result
-              status="success"
-              title={
-                <span data-testid="welcome">
-                  已登录：{me.displayName}（{me.role}）
-                </span>
-              }
-              subTitle={
-                <Typography.Text>
-                  可访问仓库：{me.warehouses.map((w) => w.code).join('、') || '无'}
-                </Typography.Text>
-              }
-            />
-          ) : (
-            <Card title="登录" style={{ width: 360 }}>
-              {error && <Alert type="error" title={error} style={{ marginBottom: 16 }} />}
-              <Form layout="vertical" onFinish={onFinish} initialValues={{ username: 'admin' }}>
-                <Form.Item label="用户名" name="username" rules={[{ required: true }]}>
-                  <Input autoComplete="username" />
-                </Form.Item>
-                <Form.Item label="密码" name="password" rules={[{ required: true }]}>
-                  <Input.Password autoComplete="current-password" />
-                </Form.Item>
-                <Button type="primary" htmlType="submit" block loading={loading}>
-                  登录
-                </Button>
-              </Form>
-            </Card>
-          )}
-        </Layout.Content>
-      </Layout>
+    <ConfigProvider locale={zhCN} theme={{ token: { colorPrimary: '#1668dc' } }}>
+      <AntApp>
+        <QueryClientProvider client={queryClient}>
+          <RouterProvider router={router} />
+        </QueryClientProvider>
+      </AntApp>
     </ConfigProvider>
   );
 }
