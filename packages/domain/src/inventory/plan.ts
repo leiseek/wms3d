@@ -41,13 +41,70 @@ export class PlanError extends Error {
   readonly code = 'VALIDATION_FAILED' as const;
 }
 
+/** 每命令行数上限（02 §6.1）。 */
+export const MAX_COMMAND_LINES = 200;
+
+const cmpStr = (a: string, b: string): number => (a < b ? -1 : a > b ? 1 : 0);
+const keyOf = (locationId: string, skuId: string, lotNo: string) =>
+  `${locationId}\u0000${skuId}\u0000${lotNo}`;
+
 /**
- * 计划纯函数（02 §6.1）。**签名在 contract-v1 冻结；实现由 WS-A2 在 M1 完成**（含单测与属性测试）。
- * 规则：TRANSFER 展开为 (from,−q)/(to,+q)；同键合并，合并后为 0 → PlanError(VALIDATION_FAILED)；输出排序如上。
+ * 计划纯函数（02 §6.1）。签名在 contract-v1 冻结；实现：WS-A2（M1）。
+ * 规则：TRANSFER 展开为 (from,−q)/(to,+q)；同键合并，合并后为 0 → PlanError(VALIDATION_FAILED)；
+ * 输出 `lockLocations` 升序、`deltas` 按 (locationId, skuId, lotNo) 升序（全局锁顺序，ADR-0003 §4）。
+ * id 一律小写比较：PG 的 uuid 排序与小写十六进制字符串的字典序一致。
  */
 export function planMovements(cmd: ResolvedCommand): MovementPlan {
-  void cmd;
-  throw new Error('NOT_IMPLEMENTED: planMovements 由 WS-A2 实现（docs/workstreams/ws-a2.md）');
+  if (cmd.lines.length === 0) throw new PlanError('命令至少需要一行');
+  if (cmd.lines.length > MAX_COMMAND_LINES)
+    throw new PlanError(`每个命令最多 ${MAX_COMMAND_LINES} 行`);
+  const raw: MovementDelta[] = [];
+  const push = (locationId: string, skuId: string, lotNo: string | undefined, delta: number) => {
+    if (!Number.isSafeInteger(delta) || delta === 0) throw new PlanError('数量必须是非 0 整数');
+    raw.push({
+      locationId: locationId.toLowerCase(),
+      skuId: skuId.toLowerCase(),
+      lotNo: lotNo ?? '',
+      delta,
+    });
+  };
+  switch (cmd.type) {
+    case 'INBOUND':
+    case 'OUTBOUND':
+      for (const l of cmd.lines) {
+        if (!(l.qty > 0)) throw new PlanError('qty 必须为正');
+        push(l.locationId, l.skuId, l.lotNo, cmd.type === 'INBOUND' ? l.qty : -l.qty);
+      }
+      break;
+    case 'TRANSFER':
+      for (const l of cmd.lines) {
+        if (!(l.qty > 0)) throw new PlanError('qty 必须为正');
+        if (l.fromLocationId.toLowerCase() === l.toLocationId.toLowerCase())
+          throw new PlanError('from 与 to 不能相同');
+        push(l.fromLocationId, l.skuId, l.lotNo, -l.qty);
+        push(l.toLocationId, l.skuId, l.lotNo, l.qty);
+      }
+      break;
+    default:
+      for (const l of cmd.lines) push(l.locationId, l.skuId, l.lotNo, l.qtyDelta);
+  }
+  const merged = new Map<string, MovementDelta>();
+  for (const d of raw) {
+    const k = keyOf(d.locationId, d.skuId, d.lotNo);
+    const prev = merged.get(k);
+    if (prev) prev.delta += d.delta;
+    else merged.set(k, { ...d });
+  }
+  const deltas = [...merged.values()];
+  const zero = deltas.find((d) => d.delta === 0);
+  if (zero)
+    throw new PlanError(`同一仓位/SKU 的数量合并后为 0（${zero.locationId} / ${zero.skuId}）`);
+  deltas.sort(
+    (a, b) =>
+      cmpStr(a.locationId, b.locationId) || cmpStr(a.skuId, b.skuId) || cmpStr(a.lotNo, b.lotNo),
+  );
+  const lockLocations = [...new Set(deltas.map((d) => d.locationId))].sort(cmpStr);
+  return { lockLocations, deltas, hasInbound: deltas.some((d) => d.delta > 0) };
 }
 
 export type { TxnCommand };
