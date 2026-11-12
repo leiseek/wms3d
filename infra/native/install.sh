@@ -7,6 +7,7 @@
 #        同一套步骤与模板，但用 pg_ctl / 后台 node / caddy run 托管在临时前缀（缺省 /tmp/wms3d-native-ws-f），
 #        端口 API 4790 · PG 4791 · HTTP 4792（ws-f 段）。--smoke：健康检查 → 演示数据 → 登录 → 一笔入库 → 备份 → 恢复 → 对账；
 #        另用 systemd-analyze verify 校验渲染出的 unit。结束停止全部进程并删除前缀（--keep 保留文件，--keep-running 不停进程）。
+#   infra/native/install.sh --stop [--prefix P] [--keep]   停止 --keep-running 留下的前台实例
 #
 # 依赖：node ≥ 24、pnpm（构建发布目录）、PG17 服务端二进制（PG_BIN，缺省 /opt/tools/pg17/bin）、psql/pg_dump/pg_restore 17、
 #       caddy（CADDY_BIN；缺省按 fetch-caddy.sh 的缓存路径查找，找不到则 --foreground 跳过 Caddy 并在报告中注明）。
@@ -23,6 +24,7 @@ while [ $# -gt 0 ]; do
     --smoke) SMOKE=1; shift;;
     --keep) KEEP=1; shift;;
     --keep-running) KEEP_RUNNING=1; KEEP=1; shift;;
+    --stop) MODE=stop; shift;;
     --prefix) PREFIX="$2"; shift 2;;
     --domain) DOMAIN="$2"; shift 2;;
     --tls) TLS="$2"; shift 2;;
@@ -32,6 +34,15 @@ while [ $# -gt 0 ]; do
   esac
 done
 [ -n "$MODE" ] || { echo "必须指定 --systemd 或 --foreground" >&2; exit 2; }
+if [ "$MODE" = stop ]; then # 停止 --keep-running 留下的前台实例：install.sh --stop [--prefix P] [--keep]
+  PREFIX="${PREFIX:-/tmp/wms3d-native-ws-f}"
+  [ -f "$PREFIX/run/pids" ] && while read -r p; do kill -TERM -- "-$p" 2>/dev/null || kill -TERM "$p" 2>/dev/null || true; done < "$PREFIX/run/pids"
+  sleep 1
+  PGB="${PG_BIN:-${WMS_PG_BIN:-/opt/tools/pg17/bin}}"
+  [ -f "$PREFIX/data/pg/PG_VERSION" ] && "$PGB/pg_ctl" -D "$PREFIX/data/pg" -m fast -w stop >/dev/null 2>&1 || true
+  [ "$KEEP" = 1 ] || rm -rf "$PREFIX"
+  echo "已停止 $PREFIX"; exit 0
+fi
 
 log() { echo "[native $(date '+%T %Z')] $*" >&2; }
 die() { echo "[native] 错误：$*" >&2; exit 1; }
@@ -204,7 +215,7 @@ fi
 
 stop_all() {
   [ "$MODE" = foreground ] || return 0
-  [ "$KEEP_RUNNING" = 1 ] && { log "--keep-running：进程保留（$PREFIX/run/procs）；停止：infra/native/install.sh --foreground --stop 或 kill"; return 0; }
+  [ "$KEEP_RUNNING" = 1 ] && { log "--keep-running：进程保留（$PREFIX/run/procs）；停止：infra/native/install.sh --stop --prefix $PREFIX"; return 0; }
   if [ -f "$FG_PIDS" ]; then while read -r p; do kill -TERM -- "-$p" 2>/dev/null || kill -TERM "$p" 2>/dev/null || true; done < "$FG_PIDS"; fi
   sleep 1
   "$PG_BIN/pg_ctl" -D "$PGDATA" -m fast -w stop >/dev/null 2>&1 || true
