@@ -65,12 +65,14 @@ export function PublishDialog(p: {
       maskClosable={false}
       footer={
         s.phase === 'done' ? (
-          <Button type="primary" onClick={p.onClose}>
+          <Button type="primary" onClick={p.onClose} data-testid="publish-close">
             完成
           </Button>
         ) : (
           <Space>
-            <Button onClick={p.onClose}>取消</Button>
+            <Button onClick={p.onClose} data-testid="publish-cancel">
+              取消
+            </Button>
             <Button
               type="primary"
               disabled={!canGo}

@@ -57,9 +57,11 @@ export function DesignerCanvas(p: DesignerCanvasProps) {
       y: (height - doc.warehouse.depthM * s) / 2,
     });
   };
-  const fitKey = `${doc.warehouse.widthM}x${doc.warehouse.depthM}@${width}x${height}`;
+  // 只在首次拿到真实尺寸、或仓库尺寸变化时自动适配；画布高度变化（立面视图展开）不重置视图，避免拖动中跳变
+  const fitKey = `${doc.warehouse.widthM}x${doc.warehouse.depthM}`;
+  const sized = width > 200 && height > 200;
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  useEffect(fit, [fitKey]);
+  useEffect(() => void (sized && fit()), [fitKey, sized]);
 
   useEffect(() => {
     const down = (e: KeyboardEvent) => {
@@ -152,10 +154,11 @@ export function DesignerCanvas(p: DesignerCanvasProps) {
     }
     if (p.tool === 'zone' || p.tool === 'floor') {
       const pt = snapPoint(w[0], w[1], 0.5);
+      const last = draft[draft.length - 1];
       if (draft.length >= 3 && near(pt, draft[0]!, 0.01)) {
         p.onPolygon(p.tool, draft);
         setDraft([]);
-      } else setDraft([...draft, pt]);
+      } else if (!last || !near(pt, last, 0.01)) setDraft([...draft, pt]);
       return;
     }
     if (p.tool === 'measure') {
@@ -203,6 +206,10 @@ export function DesignerCanvas(p: DesignerCanvasProps) {
       onClick={onStageClick}
       onMouseMove={() => setCursor(toWorld())}
       onDblClick={() => {
+        // Konva 的 dblclick 只看时间间隔；只有两次点击落在同一点（最后一个顶点）才视为"双击结束"
+        const w = toWorld();
+        const last = draft[draft.length - 1];
+        if (!w || !last || !near(snapPoint(w[0], w[1], 0.5), last, 0.01)) return;
         if ((p.tool === 'zone' || p.tool === 'floor') && draft.length >= 3) {
           p.onPolygon(p.tool, draft);
           setDraft([]);

@@ -1,4 +1,4 @@
-import { Badge, Empty, List, Tag, Typography } from 'antd';
+import { Badge, Empty, Tag, Typography } from 'antd';
 import type { LayoutIssue } from '@wms3d/contracts';
 
 export const ISSUE_LABEL: Record<LayoutIssue['code'], string> = {
@@ -32,30 +32,39 @@ export function ValidationPanel(p: {
       {p.issues.length === 0 ? (
         <Empty image={Empty.PRESENTED_IMAGE_SIMPLE} description="没有问题" />
       ) : (
-        <List
-          size="small"
-          dataSource={p.issues as LayoutIssue[]}
-          style={{ maxHeight: 220, overflow: 'auto' }}
-          renderItem={(i) => (
-            <List.Item
-              style={{ cursor: i.rackKeys.length ? 'pointer' : 'default', padding: '4px 0' }}
+        <ul
+          style={{
+            maxHeight: 220,
+            overflow: 'auto',
+            listStyle: 'none',
+            margin: '6px 0 0',
+            padding: 0,
+          }}
+        >
+          {p.issues.map((i, k) => (
+            <li
+              key={k}
+              style={{
+                cursor: i.rackKeys.length ? 'pointer' : 'default',
+                padding: '4px 0',
+                borderBottom: '1px solid #f0f0f0',
+                fontSize: 12,
+              }}
               onClick={() => i.rackKeys.length && p.onPick(i.rackKeys)}
               data-testid={`issue-${i.code}`}
             >
-              <span style={{ fontSize: 12 }}>
-                <Tag color={i.severity === 'ERROR' ? 'red' : 'orange'}>{ISSUE_LABEL[i.code]}</Tag>
-                {i.message}
-                {i.codes.length > 0 && (
-                  <Typography.Text type="secondary" style={{ fontSize: 11 }}>
-                    {' '}
-                    {i.codes.slice(0, 6).join('、')}
-                    {i.codes.length > 6 ? '…' : ''}
-                  </Typography.Text>
-                )}
-              </span>
-            </List.Item>
-          )}
-        />
+              <Tag color={i.severity === 'ERROR' ? 'red' : 'orange'}>{ISSUE_LABEL[i.code]}</Tag>
+              {i.message}
+              {i.codes.length > 0 && (
+                <Typography.Text type="secondary" style={{ fontSize: 11 }}>
+                  {' '}
+                  {i.codes.slice(0, 6).join('、')}
+                  {i.codes.length > 6 ? '…' : ''}
+                </Typography.Text>
+              )}
+            </li>
+          ))}
+        </ul>
       )}
     </div>
   );
