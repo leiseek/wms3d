@@ -80,12 +80,24 @@ function newPending(r: Extract<Resolved, { kind: 'SKU' }>, source: ScanSource): 
   return { sku: r.sku, rawBarcode: null, packQty: r.packQty, qty: r.packQty, source };
 }
 
-/** 处理一次扫码 */
-export function onScan(s: FlowState, r: Resolved, source: ScanSource): Step {
-  return s.mode === 'TRANSFER' ? transfer(s, r, source) : moveFlow(s, r, source);
+export interface FlowOptions {
+  /** 设置页：相机来源再扫同 SKU 也累加（默认关闭，用数量键盘；04 §2.4） */
+  cameraAccumulate?: boolean;
 }
 
-function moveFlow(s: FlowState, r: Resolved, source: ScanSource): Step {
+/** 处理一次扫码 */
+export function onScan(
+  s: FlowState,
+  r: Resolved,
+  source: ScanSource,
+  opts: FlowOptions = {},
+): Step {
+  return s.mode === 'TRANSFER' ? transfer(s, r, source) : moveFlow(s, r, source, opts);
+}
+
+function moveFlow(s: FlowState, r: Resolved, source: ScanSource, opts: FlowOptions): Step {
+  const accumulates =
+    source === 'CAMERA' ? !!opts.cameraAccumulate : DEDUPE[source].accumulateSameSku;
   const stay = (effects: Effect[]): Step => ({ state: s, effects });
   switch (s.phase) {
     case 'WAIT_LOC':
@@ -152,7 +164,7 @@ function moveFlow(s: FlowState, r: Resolved, source: ScanSource): Step {
           return stay([{ type: 'hint', message: HINT_RACK }]);
         case 'SKU': {
           if (p.sku?.id === r.sku.id) {
-            if (!DEDUPE[source].accumulateSameSku)
+            if (!accumulates)
               return stay([{ type: 'hint', message: '相机扫码不累加数量，请用数量键盘' }]);
             return {
               state: { ...s, pending: { ...p, qty: p.qty + r.packQty, source } },
@@ -167,7 +179,7 @@ function moveFlow(s: FlowState, r: Resolved, source: ScanSource): Step {
         case 'WRONG_WAREHOUSE':
           return stay([wrongWh(r)]);
         default:
-          if (r.offline && p.rawBarcode === r.raw.trim() && DEDUPE[source].accumulateSameSku)
+          if (r.offline && p.rawBarcode === r.raw.trim() && accumulates)
             return {
               state: { ...s, pending: { ...p, qty: p.qty + 1 } },
               effects: [{ type: 'ok' }],
