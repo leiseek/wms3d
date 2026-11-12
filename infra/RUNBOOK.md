@@ -106,5 +106,5 @@ ALTER DATABASE wms3d_restored RENAME TO wms3d;
 - Caddy：HSTS、CSP、`X-Frame-Options: DENY`、`nosniff`、`Referrer-Policy: no-referrer`。
 
 ## 8. 本机验证记录与已知限制
-- `infra/native/install.sh --foreground --smoke`：PG17 + API + Caddy 2.11.9 → 健康检查 → 安全头 → SPA 回退 → 演示数据 → 登录 → 一笔入库 → 备份 → 恢复 → 对账 → `systemd-analyze --user verify` 单元校验，全部通过（入库在 ws-a2 合并前为 501，记为 skipped；在 main+ws-a2 预览上为 pass）。
+- `infra/native/install.sh --foreground --smoke`：PG17 + API + Caddy 2.11.9 → 健康检查 → 安全头 → SPA 回退 → 演示数据 → 登录 → 一笔入库 → 备份 → 恢复 → 对账 → `systemd-analyze --user verify` 单元校验，全部通过（main 合并 ws-a2 之后，入库一步为 pass；之前为 501 并记为 skipped）。
 - **未验证**：真实 systemd 下的 `--systemd` 安装（本机 PID 1 不是 systemd，且简报禁止安装系统服务）；ACME/DNS-01；rclone 真实远端；docker compose 全部内容。
