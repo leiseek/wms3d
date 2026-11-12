@@ -3,10 +3,10 @@
 - 工作流：ws-b
 - 阻塞：否（后台已按 `file` 字段上传，并在前端做了预检；可先合并）
 - 现状：
-  1. `importSkus`（`POST /skus/import`，`multipart/form-data`）在契约和 03 §中都没写文件字段名；WS-A1 实现时可能用别的名字，导致真实 API 收不到文件。
+  1. `importSkus`（`POST /skus/import`，`multipart/form-data`）在契约和 docs/03-api.md 中都没写文件字段名；WS-A1 实现时可能用别的名字，导致真实 API 收不到文件。
   2. mock 的 `importSkus` 不读上传内容，固定返回 `totalRows: 0, errors: []`。后台的“服务端预检”路径（`ImportResult.errors` 与前端错误合并、显示新增/更新数）因此只能用前端预检做 E2E。
 - 需求：
-  1. 在契约中写明字段名为 **`file`**（单文件，UTF-8 CSV，≤ 5 万行），例如在 `routes.ts` 的 `importSkus.summary` 或 03 §中加一句；WS-A1 按此实现。
+  1. 在契约中写明字段名为 **`file`**（单文件，UTF-8 CSV，≤ 5 万行），例如在 `routes.ts` 的 `importSkus.summary` 或 03-api.md 中加一句；WS-A1 按此实现。
   2. （可选）mock 解析上传的 CSV：按 `code` 统计 created/updated；对已存在于其他 SKU 的条码返回 `BARCODE_CONFLICT`；`dryRun=false` 时真的 upsert 到 store。这样 E2E 能覆盖服务端错误行。
 - 建议的 schema diff：无（只是文档/注释与 mock 行为）。
 
