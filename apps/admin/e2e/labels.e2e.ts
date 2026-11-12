@@ -16,6 +16,14 @@ test('标签：仓位 → 模板 → 预览 PDF；货架只显示货架模板', 
   expect(body.ids.length).toBeGreaterThan(0);
   await expect(page.getByTestId('label-pdf')).toBeVisible();
   await expect(page.getByTestId('label-download')).toBeEnabled();
+  await expect(page.getByTestId('label-capacity')).toContainText('容量检查');
+  await expect(page.getByTestId('label-job-count')).toBeVisible();
+
+  // A4 多联模板不能选 ZPL
+  await page.getByTestId('label-templates').getByText('a4-3x8').click();
+  await page.getByTestId('label-format').click();
+  await expect(page.locator('.ant-select-item-option-disabled', { hasText: 'ZPL' })).toBeVisible();
+  await page.keyboard.press('Escape');
 
   // 货架：只列出支持 RACK 的模板
   await page.getByTestId('label-kind').getByText('货架标签').click();

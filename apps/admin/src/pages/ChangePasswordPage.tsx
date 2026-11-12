@@ -3,7 +3,7 @@ import { Alert, App as AntApp, Button, Card, Flex, Form, Input, Typography } fro
 import { Navigate, useNavigate } from 'react-router';
 import { api } from '../api';
 import { useSession } from '../session';
-import { errorMessage } from '../lib/errors';
+import { toErrorView } from '../lib/errors';
 
 /** 强制改密（mustChangePassword）与主动改密共用。 */
 export default function ChangePasswordPage() {
@@ -12,6 +12,7 @@ export default function ChangePasswordPage() {
   const { message } = AntApp.useApp();
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
+  const [form] = Form.useForm();
   if (status === 'booting') return null;
   if (status !== 'authenticated' || !me) return <Navigate to="/login" replace />;
   const forced = me.mustChangePassword;
@@ -27,7 +28,17 @@ export default function ChangePasswordPage() {
       void message.success('密码已修改');
       nav('/', { replace: true });
     } catch (e) {
-      setError(errorMessage(e));
+      // v1.2：口令错误 / 新旧相同 → 400 VALIDATION_FAILED，errors[].path 指向字段，标在对应输入框上
+      const v = toErrorView(e);
+      const known = v.fields.filter((f) => /(currentPassword|newPassword)$/.test(f.path));
+      if (known.length)
+        form.setFields(
+          known.map((f) => ({
+            name: f.path.endsWith('currentPassword') ? 'currentPassword' : 'newPassword',
+            errors: [f.message],
+          })),
+        );
+      else setError(v.message);
     } finally {
       setLoading(false);
     }
@@ -46,7 +57,7 @@ export default function ChangePasswordPage() {
           />
         )}
         {error && <Alert type="error" title={error} style={{ marginBottom: 16 }} />}
-        <Form layout="vertical" onFinish={onFinish}>
+        <Form form={form} layout="vertical" onFinish={onFinish}>
           <Form.Item label="当前密码" name="currentPassword" rules={[{ required: true }]}>
             <Input.Password autoComplete="current-password" data-testid="pwd-current" />
           </Form.Item>

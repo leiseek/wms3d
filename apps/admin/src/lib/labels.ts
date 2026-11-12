@@ -69,6 +69,8 @@ export interface RenderInput {
   startCell?: number | null;
   reprintRequestIds?: string[];
   isSheet: boolean;
+  /** v1.2：ZPL 为实验性，A4 多联模板不支持 */
+  format?: 'PDF' | 'ZPL';
 }
 
 /** 构造 POST /labels/render 请求体（ids 模式；A4 才带 startCell；偏移为 0 时省略）。 */
@@ -76,13 +78,14 @@ export function buildRenderBody(i: RenderInput) {
   if (!i.ids.length) throw new Error('请先选择要打印的对象');
   if (i.ids.length > MAX_LABELS_PER_JOB)
     throw new Error(`单次最多 ${MAX_LABELS_PER_JOB} 张，请分批打印`);
+  if (i.format === 'ZPL' && i.isSheet) throw new Error('A4 多联模板不支持 ZPL，请选 PDF');
   const o = clampOffset(i.offset);
   return {
     template: i.template,
     kind: i.kind,
     warehouseId: i.warehouseId, // v1.2：SKU 标签也必填（作用域 / 审计 / 补打归属）
     ids: i.ids,
-    format: 'PDF' as const,
+    format: i.format ?? ('PDF' as const),
     dpi: i.dpi,
     ...(i.isSheet && i.startCell && i.startCell > 1 ? { startCell: i.startCell } : {}),
     ...(o.x || o.y ? { offsetMm: o } : {}),
@@ -93,3 +96,24 @@ export function buildRenderBody(i: RenderInput) {
 /** A4 多联的每页张数 */
 export const perSheet = (t: Pick<LabelTemplate, 'sheet'>) =>
   t.sheet ? t.sheet.cols * t.sheet.rows : 1;
+
+/**
+ * Code128 模块数上界（全按 Code B 计：起始 11 + 每字符 11 + 校验 11 + 终止 13）+ 两侧静区 20（07 §2）。
+ * 纯数字长串实际会切到 Code C 更短，所以这是保守估计，仅用于界面提示；权威校验在服务端渲染时。
+ */
+export function code128ModulesUpperBound(payload: string): number {
+  return 11 * (payload.length + 2) + 13 + 20;
+}
+
+/** 选中载荷里最长的那个是否可能超过模板容量（maxModules 按 dpi 分列）。 */
+export function capacityHint(
+  t: Pick<LabelTemplate, 'maxModules'> | null,
+  dpi: 203 | 300,
+  payloads: readonly string[],
+): { longest: string; modules: number; max: number; over: boolean } | null {
+  if (!t?.maxModules || !payloads.length) return null;
+  const longest = payloads.reduce((a, b) => (b.length > a.length ? b : a));
+  const modules = code128ModulesUpperBound(longest);
+  const max = dpi === 300 ? t.maxModules.dpi300 : t.maxModules.dpi203;
+  return { longest, modules, max, over: modules > max };
+}

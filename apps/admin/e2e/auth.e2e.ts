@@ -35,6 +35,12 @@ test('登录 → 管理员建用户 → 新用户强制改密 → 进入看板',
     await login(page, username, 'Temp#12345');
     await expect(page).toHaveURL(/\/change-password/);
   }
+  // 当前口令错误 → 400 VALIDATION_FAILED，错误标在“当前密码”字段上（v1.2）
+  await page.getByTestId('pwd-current').fill('Wrong#12345');
+  await page.getByTestId('pwd-new').fill('NewPass#2026');
+  await page.getByTestId('pwd-confirm').fill('NewPass#2026');
+  await page.getByTestId('pwd-submit').click();
+  await expect(page.locator('#currentPassword_help')).toContainText('当前密码不正确');
   await page.getByTestId('pwd-current').fill('Temp#12345');
   await page.getByTestId('pwd-new').fill('NewPass#2026');
   await page.getByTestId('pwd-confirm').fill('NewPass#2026');

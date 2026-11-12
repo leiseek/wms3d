@@ -2,6 +2,8 @@ import { describe, expect, it } from 'vitest';
 import { LabelRenderRequest, type LabelTemplate } from '@wms3d/contracts';
 import {
   buildRenderBody,
+  capacityHint,
+  code128ModulesUpperBound,
   clampOffset,
   loadOffset,
   perSheet,
@@ -116,5 +118,38 @@ describe('偏移偏好', () => {
     s.setItem('wms3d.labelOffsets', '{oops');
     expect(loadOffset('x', s)).toEqual({ x: 0, y: 0 });
     expect(clampOffset({ x: Number.NaN, y: 3 })).toEqual({ x: 0, y: 3 });
+  });
+});
+
+describe('ZPL 与容量提示（v1.2）', () => {
+  const base = {
+    template: 'a4-3x8' as const,
+    kind: 'LOCATION' as const,
+    warehouseId: WH,
+    ids: [ID],
+    dpi: 203 as const,
+    offset: { x: 0, y: 0 },
+    isSheet: true,
+  };
+  it('A4 模板禁止 ZPL；热敏模板可以', () => {
+    expect(() => buildRenderBody({ ...base, format: 'ZPL' })).toThrow('ZPL');
+    const b = buildRenderBody({ ...base, template: 'loc-100x50', isSheet: false, format: 'ZPL' });
+    expect(b.format).toBe('ZPL');
+    expect(LabelRenderRequest.safeParse(b).success).toBe(true);
+  });
+  it('默认载荷 WH1.A03-17-C02 ≈ 209 模块（07 §2）', () => {
+    expect(code128ModulesUpperBound('WH1.A03-17-C02')).toBe(209);
+  });
+  it('按 dpi 取 maxModules，取最长载荷', () => {
+    const t = { maxModules: { dpi203: 200, dpi300: 260 } };
+    expect(capacityHint(t, 203, ['A', 'WH1.A03-17-C02'])).toEqual({
+      longest: 'WH1.A03-17-C02',
+      modules: 209,
+      max: 200,
+      over: true,
+    });
+    expect(capacityHint(t, 300, ['WH1.A03-17-C02'])?.over).toBe(false);
+    expect(capacityHint({ maxModules: null }, 203, ['x'])).toBeNull();
+    expect(capacityHint(t, 203, [])).toBeNull();
   });
 });

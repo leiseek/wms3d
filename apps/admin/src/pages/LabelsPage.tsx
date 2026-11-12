@@ -35,6 +35,7 @@ import {
 } from '../components/common';
 import {
   buildRenderBody,
+  capacityHint,
   KIND_LABELS,
   loadOffset,
   MAX_LABELS_PER_JOB,
@@ -311,6 +312,12 @@ export default function LabelsPage() {
   const [reprintIds, setReprintIds] = useState<string[]>([]);
   const [pdf, setPdf] = useState<{ url: string; blob: Blob; name: string } | null>(null);
   const [busy, setBusy] = useState(false);
+  const [format, setFormat] = useState<'PDF' | 'ZPL'>('PDF');
+  const [lastJob, setLastJob] = useState<{
+    count: string | null;
+    reprintsDone: string | null;
+  } | null>(null);
+  const whCode = me?.warehouses.find((w) => w.id === warehouseId)?.code ?? '';
 
   const tpls = useQuery({
     queryKey: ['labelTemplates'],
@@ -360,10 +367,21 @@ export default function LabelsPage() {
         offset,
         startCell,
         isSheet: !!tpl.sheet,
+        format,
         ...(opts.reprint ? { reprintRequestIds: opts.reprint } : {}),
       });
       const res = await api.r.renderLabels({ body });
       const blob = await res.blob();
+      setLastJob({
+        count: res.headers.get('x-label-count'),
+        reprintsDone: res.headers.get('x-reprints-done'),
+      });
+      if (format === 'ZPL') {
+        // ZPL 是打印机指令文本，浏览器无法预览：直接下载（实验性）
+        downloadBlob(blob, `labels-${template}-${opts.ids.length}.zpl`);
+        if (opts.reprint) void qc.invalidateQueries({ queryKey: ['reprints'] });
+        return;
+      }
       const name = `labels-${template}-${opts.ids.length}.pdf`;
       if (opts.download) downloadBlob(blob, name);
       setPdf((old) => {
@@ -393,6 +411,14 @@ export default function LabelsPage() {
   };
 
   const ids = [...sel.keys()];
+  const cap = capacityHint(
+    tpl,
+    dpi,
+    [...sel.values()].map((c) => (kind === 'SKU' || !whCode ? c : `${whCode}.${c}`)),
+  );
+  useEffect(() => {
+    if (tpl?.sheet && format === 'ZPL') setFormat('PDF');
+  }, [tpl, format]);
   const printPanel = (
     <Row gutter={16}>
       <Col xs={24} xl={11}>
@@ -513,6 +539,18 @@ export default function LabelsPage() {
               </Radio.Group>
             </Form.Item>
             <Space wrap>
+              <Form.Item label="格式">
+                <Select
+                  value={format}
+                  onChange={setFormat}
+                  style={{ width: 150 }}
+                  data-testid="label-format"
+                  options={[
+                    { value: 'PDF', label: 'PDF（推荐）' },
+                    { value: 'ZPL', label: 'ZPL（实验）', disabled: !!tpl?.sheet },
+                  ]}
+                />
+              </Form.Item>
               <Form.Item label="打印机分辨率">
                 <Select
                   value={dpi}
@@ -572,7 +610,7 @@ export default function LabelsPage() {
               }
               data-testid="label-preview"
             >
-              生成预览
+              {format === 'ZPL' ? '生成并下载 ZPL' : '生成预览'}
             </Button>
             <Button
               disabled={!pdf}
@@ -587,10 +625,27 @@ export default function LabelsPage() {
             {ids.length > MAX_LABELS_PER_JOB && (
               <Typography.Text type="danger">超过 {MAX_LABELS_PER_JOB} 张，请分批</Typography.Text>
             )}
+            {lastJob?.count && <Tag data-testid="label-job-count">本次 {lastJob.count} 张</Tag>}
+            {lastJob?.reprintsDone && Number(lastJob.reprintsDone) > 0 && (
+              <Tag color="green">已完成补打 {lastJob.reprintsDone}</Tag>
+            )}
             {reprintIds.length > 0 && (
               <Tag color="purple">补打 {reprintIds.length} 张（打印后标记完成）</Tag>
             )}
           </Space>
+          {cap && (
+            <Alert
+              style={{ marginTop: 12 }}
+              type={cap.over ? 'error' : 'success'}
+              showIcon
+              data-testid="label-capacity"
+              title={
+                cap.over
+                  ? `最长载荷 ${cap.longest} 约 ${cap.modules} 模块，可能超过该模板 ${dpi}dpi 容量 ${cap.max}，建议换更宽的模板或 300dpi`
+                  : `容量检查：最长载荷 ${cap.longest} 约 ${cap.modules} 模块 ≤ ${cap.max}（${dpi}dpi）`
+              }
+            />
+          )}
           <div style={{ marginTop: 12 }}>
             <PrintGuide />
           </div>
