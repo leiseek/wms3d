@@ -3,3 +3,6 @@ include ':capacitor-cordova-android-plugins'
 project(':capacitor-cordova-android-plugins').projectDir = new File('./capacitor-cordova-android-plugins/')
 
 apply from: 'capacitor.settings.gradle'
+// WS-C：本地原生插件（Kotlin）。不经 npm 包引入，避免改 package.json/lockfile（docs/contract-requests/ws-c-1.md）
+include ':wms3d-capacitor-scanner'
+project(':wms3d-capacitor-scanner').projectDir = new File('../../../native/capacitor-scanner/android')
