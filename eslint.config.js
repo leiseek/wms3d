@@ -11,12 +11,25 @@ export default tseslint.config(
       '**/coverage/**',
       'apps/mobile/android/**',
       'docs/**',
+      '**/public/mockServiceWorker.js',
+      'packages/contracts/openapi.json',
     ],
   },
   js.configs.recommended,
   ...tseslint.configs.recommended,
   {
     languageOptions: { globals: { ...globals.node, ...globals.browser } },
+    rules: {
+      '@typescript-eslint/no-unused-vars': [
+        'error',
+        {
+          argsIgnorePattern: '^_',
+          varsIgnorePattern: '^_',
+          caughtErrorsIgnorePattern: '^_',
+          ignoreRestSiblings: true,
+        },
+      ],
+    },
   },
   {
     files: ['apps/admin/**/*.tsx', 'apps/mobile/**/*.tsx', 'packages/**/*.tsx'],

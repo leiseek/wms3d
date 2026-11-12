@@ -10,6 +10,28 @@
   </head>
   <body>
     <div id="root"></div>
+    <!--
+      R3：运行时能力检测放在模块脚本之前的经典 ES5 脚本里。旧 WebView 若不支持 ES 模块或新语法，
+      模块脚本根本不会执行，src/runtime-check.ts 也就无从跳转；这里先行检测并跳到独立 ES5 提示页。
+      不得使用 ES2015+ 语法。与 src/runtime-check.ts 的检测项保持一致。
+    -->
+    <script>
+      (function () {
+        var missing = [];
+        if (!('noModule' in document.createElement('script'))) missing.push('ES modules');
+        if (typeof Array.prototype.at !== 'function') missing.push('Array.prototype.at');
+        if (typeof window.structuredClone !== 'function') missing.push('structuredClone');
+        if (!window.crypto || typeof window.crypto.getRandomValues !== 'function')
+          missing.push('crypto.getRandomValues');
+        if (typeof window.indexedDB === 'undefined') missing.push('indexedDB');
+        if (missing.length) {
+          window.__wmsRuntimeMissing = missing;
+          window.location.replace(
+            '/webview-too-old.html?missing=' + encodeURIComponent(missing.join(',')),
+          );
+        }
+      })();
+    </script>
     <script type="module" src="/src/main.tsx"></script>
   </body>
 </html>

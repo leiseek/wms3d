@@ -3,7 +3,7 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>需要升级 WebView</title>
+    <title>wms3d</title>
     <style>
       body {
         font-family: sans-serif;
@@ -21,19 +21,53 @@
         color: #888;
         word-break: break-all;
       }
+      button {
+        font-size: 20px;
+        padding: 12px 32px;
+        margin-top: 8px;
+      }
+      .hidden {
+        display: none;
+      }
     </style>
   </head>
   <body>
-    <!-- 独立 ES5 页面：不得使用 ES2015+ 语法，不经 Vite 转译（docs/04-mobile.md §1，R2 M-N8） -->
-    <h1>系统 WebView 版本过低</h1>
-    <p>wms3d 需要较新的 Android System WebView（或华为 WebView）才能运行。</p>
-    <p>请在应用市场更新「Android System WebView」/「华为浏览器内核」，或联系管理员更换设备。</p>
+    <!--
+      独立 ES5 页面：不得使用 ES2015+ 语法，不经 Vite 转译（docs/04-mobile.md §1）。
+      两种用途（R3）：
+      1. 带 ?missing=… ：index.html 内联检测或 runtime-check 发现能力缺失 → "WebView 过低"。
+      2. 不带参数：Capacitor server.errorPath（页面加载失败，如本地资源损坏/启动异常）→ "页面加载失败" + 重试。
+    -->
+    <div id="too-old" class="hidden">
+      <h1>系统 WebView 版本过低</h1>
+      <p>wms3d 需要较新的 Android System WebView（或华为 WebView）才能运行。</p>
+      <p>请在应用市场更新「Android System WebView」/「华为浏览器内核」，或联系管理员更换设备。</p>
+      <p class="ua" id="missing"></p>
+    </div>
+    <div id="load-failed" class="hidden">
+      <h1>页面加载失败</h1>
+      <p>应用页面未能正常加载。请点击重试；如反复出现，请重启应用或联系管理员。</p>
+      <button id="retry" type="button">重试</button>
+    </div>
     <p class="ua" id="ua"></p>
     <script>
-      var el = document.getElementById('ua');
-      if (el) {
-        el.appendChild(document.createTextNode('UA: ' + navigator.userAgent));
-      }
+      (function () {
+        var m = /[?&]missing=([^&]*)/.exec(window.location.search);
+        var show = document.getElementById(m ? 'too-old' : 'load-failed');
+        if (show) show.className = '';
+        if (m) {
+          var el = document.getElementById('missing');
+          if (el) el.appendChild(document.createTextNode('缺少能力：' + decodeURIComponent(m[1])));
+        }
+        var btn = document.getElementById('retry');
+        if (btn) {
+          btn.onclick = function () {
+            window.location.replace('/');
+          };
+        }
+        var ua = document.getElementById('ua');
+        if (ua) ua.appendChild(document.createTextNode('UA: ' + navigator.userAgent));
+      })();
     </script>
   </body>
 </html>

@@ -1,0 +1,666 @@
+{
+  "description": "wms3d 坐标/编码黄金样例（02 §2/§3）。contract-v1 冻结；由 scripts/gen-golden.ts 生成，2D 设计器/3D/标签测试共用。",
+  "rackType": {
+    "key": "g-4x3",
+    "bays": 4,
+    "levels": 3,
+    "positionsPerLevel": 2,
+    "bayWidthM": 2.7,
+    "depthM": 1,
+    "levelHeightsM": [
+      1.5,
+      1.5,
+      1.5
+    ],
+    "beamM": 0.1,
+    "uprightM": 0.08,
+    "defaultMaxQty": null
+  },
+  "rotations": [
+    {
+      "rotationDeg": 0,
+      "side": "L",
+      "bay1LevelAPos1": {
+        "center": [
+          10.755,
+          0.7,
+          9.5
+        ],
+        "corners": [
+          [
+            10.08,
+            10
+          ],
+          [
+            11.43,
+            10
+          ],
+          [
+            11.43,
+            9
+          ],
+          [
+            10.08,
+            9
+          ]
+        ]
+      },
+      "footprint": [
+        [
+          10,
+          10
+        ],
+        [
+          21.2,
+          10
+        ],
+        [
+          21.2,
+          9
+        ],
+        [
+          10,
+          9
+        ]
+      ]
+    },
+    {
+      "rotationDeg": 90,
+      "side": "L",
+      "bay1LevelAPos1": {
+        "center": [
+          10.5,
+          0.7,
+          10.755
+        ],
+        "corners": [
+          [
+            10,
+            10.08
+          ],
+          [
+            10,
+            11.43
+          ],
+          [
+            11,
+            11.43
+          ],
+          [
+            11,
+            10.08
+          ]
+        ]
+      },
+      "footprint": [
+        [
+          10,
+          10
+        ],
+        [
+          10,
+          21.2
+        ],
+        [
+          11,
+          21.2
+        ],
+        [
+          11,
+          10
+        ]
+      ]
+    },
+    {
+      "rotationDeg": 180,
+      "side": "R",
+      "bay1LevelAPos1": {
+        "center": [
+          9.245,
+          0.7,
+          10.5
+        ],
+        "corners": [
+          [
+            9.92,
+            10
+          ],
+          [
+            8.57,
+            10
+          ],
+          [
+            8.57,
+            11
+          ],
+          [
+            9.92,
+            11
+          ]
+        ]
+      },
+      "footprint": [
+        [
+          10,
+          10
+        ],
+        [
+          -1.2,
+          10
+        ],
+        [
+          -1.2,
+          11
+        ],
+        [
+          10,
+          11
+        ]
+      ]
+    },
+    {
+      "rotationDeg": 270,
+      "side": "R",
+      "bay1LevelAPos1": {
+        "center": [
+          9.5,
+          0.7,
+          9.245
+        ],
+        "corners": [
+          [
+            10,
+            9.92
+          ],
+          [
+            10,
+            8.57
+          ],
+          [
+            9,
+            8.57
+          ],
+          [
+            9,
+            9.92
+          ]
+        ]
+      },
+      "footprint": [
+        [
+          10,
+          10
+        ],
+        [
+          10,
+          -1.2
+        ],
+        [
+          9,
+          -1.2
+        ],
+        [
+          9,
+          10
+        ]
+      ]
+    }
+  ],
+  "aisles": {
+    "racks": [
+      {
+        "key": "hL1",
+        "code": "RA03-L01",
+        "side": "L"
+      },
+      {
+        "key": "hL2",
+        "code": "RA03-L02",
+        "side": "L"
+      },
+      {
+        "key": "hR1",
+        "code": "RA03-R01",
+        "side": "R"
+      },
+      {
+        "key": "hR2",
+        "code": "RA03-R02",
+        "side": "R"
+      },
+      {
+        "key": "vL1",
+        "code": "RB04-L01",
+        "side": "L"
+      },
+      {
+        "key": "vL2",
+        "code": "RB04-L02",
+        "side": "L"
+      },
+      {
+        "key": "vR1",
+        "code": "RB04-R01",
+        "side": "R"
+      },
+      {
+        "key": "vR2",
+        "code": "RB04-R02",
+        "side": "R"
+      }
+    ],
+    "bays": [
+      {
+        "rackKey": "hL1",
+        "side": "L",
+        "aisle": "A03",
+        "bay": 1,
+        "code": "A03-01-A01",
+        "bayCenterXZ": [
+          1.43,
+          4.5
+        ]
+      },
+      {
+        "rackKey": "hL1",
+        "side": "L",
+        "aisle": "A03",
+        "bay": 3,
+        "code": "A03-03-A01",
+        "bayCenterXZ": [
+          4.21,
+          4.5
+        ]
+      },
+      {
+        "rackKey": "hL1",
+        "side": "L",
+        "aisle": "A03",
+        "bay": 5,
+        "code": "A03-05-A01",
+        "bayCenterXZ": [
+          6.99,
+          4.5
+        ]
+      },
+      {
+        "rackKey": "hL1",
+        "side": "L",
+        "aisle": "A03",
+        "bay": 7,
+        "code": "A03-07-A01",
+        "bayCenterXZ": [
+          9.77,
+          4.5
+        ]
+      },
+      {
+        "rackKey": "hL2",
+        "side": "L",
+        "aisle": "A03",
+        "bay": 9,
+        "code": "A03-09-A01",
+        "bayCenterXZ": [
+          12.63,
+          4.5
+        ]
+      },
+      {
+        "rackKey": "hL2",
+        "side": "L",
+        "aisle": "A03",
+        "bay": 11,
+        "code": "A03-11-A01",
+        "bayCenterXZ": [
+          15.41,
+          4.5
+        ]
+      },
+      {
+        "rackKey": "hL2",
+        "side": "L",
+        "aisle": "A03",
+        "bay": 13,
+        "code": "A03-13-A01",
+        "bayCenterXZ": [
+          18.19,
+          4.5
+        ]
+      },
+      {
+        "rackKey": "hL2",
+        "side": "L",
+        "aisle": "A03",
+        "bay": 15,
+        "code": "A03-15-A01",
+        "bayCenterXZ": [
+          20.97,
+          4.5
+        ]
+      },
+      {
+        "rackKey": "hR1",
+        "side": "R",
+        "aisle": "A03",
+        "bay": 8,
+        "code": "A03-08-A01",
+        "bayCenterXZ": [
+          9.77,
+          8.5
+        ]
+      },
+      {
+        "rackKey": "hR1",
+        "side": "R",
+        "aisle": "A03",
+        "bay": 6,
+        "code": "A03-06-A01",
+        "bayCenterXZ": [
+          6.99,
+          8.5
+        ]
+      },
+      {
+        "rackKey": "hR1",
+        "side": "R",
+        "aisle": "A03",
+        "bay": 4,
+        "code": "A03-04-A01",
+        "bayCenterXZ": [
+          4.21,
+          8.5
+        ]
+      },
+      {
+        "rackKey": "hR1",
+        "side": "R",
+        "aisle": "A03",
+        "bay": 2,
+        "code": "A03-02-A01",
+        "bayCenterXZ": [
+          1.43,
+          8.5
+        ]
+      },
+      {
+        "rackKey": "hR2",
+        "side": "R",
+        "aisle": "A03",
+        "bay": 16,
+        "code": "A03-16-A01",
+        "bayCenterXZ": [
+          20.97,
+          8.5
+        ]
+      },
+      {
+        "rackKey": "hR2",
+        "side": "R",
+        "aisle": "A03",
+        "bay": 14,
+        "code": "A03-14-A01",
+        "bayCenterXZ": [
+          18.19,
+          8.5
+        ]
+      },
+      {
+        "rackKey": "hR2",
+        "side": "R",
+        "aisle": "A03",
+        "bay": 12,
+        "code": "A03-12-A01",
+        "bayCenterXZ": [
+          15.41,
+          8.5
+        ]
+      },
+      {
+        "rackKey": "hR2",
+        "side": "R",
+        "aisle": "A03",
+        "bay": 10,
+        "code": "A03-10-A01",
+        "bayCenterXZ": [
+          12.63,
+          8.5
+        ]
+      },
+      {
+        "rackKey": "vL1",
+        "side": "L",
+        "aisle": "B04",
+        "bay": 1,
+        "code": "B04-01-A01",
+        "bayCenterXZ": [
+          40.5,
+          1.43
+        ]
+      },
+      {
+        "rackKey": "vL1",
+        "side": "L",
+        "aisle": "B04",
+        "bay": 3,
+        "code": "B04-03-A01",
+        "bayCenterXZ": [
+          40.5,
+          4.21
+        ]
+      },
+      {
+        "rackKey": "vL1",
+        "side": "L",
+        "aisle": "B04",
+        "bay": 5,
+        "code": "B04-05-A01",
+        "bayCenterXZ": [
+          40.5,
+          6.99
+        ]
+      },
+      {
+        "rackKey": "vL1",
+        "side": "L",
+        "aisle": "B04",
+        "bay": 7,
+        "code": "B04-07-A01",
+        "bayCenterXZ": [
+          40.5,
+          9.77
+        ]
+      },
+      {
+        "rackKey": "vL2",
+        "side": "L",
+        "aisle": "B04",
+        "bay": 9,
+        "code": "B04-09-A01",
+        "bayCenterXZ": [
+          40.5,
+          12.63
+        ]
+      },
+      {
+        "rackKey": "vL2",
+        "side": "L",
+        "aisle": "B04",
+        "bay": 11,
+        "code": "B04-11-A01",
+        "bayCenterXZ": [
+          40.5,
+          15.41
+        ]
+      },
+      {
+        "rackKey": "vL2",
+        "side": "L",
+        "aisle": "B04",
+        "bay": 13,
+        "code": "B04-13-A01",
+        "bayCenterXZ": [
+          40.5,
+          18.19
+        ]
+      },
+      {
+        "rackKey": "vL2",
+        "side": "L",
+        "aisle": "B04",
+        "bay": 15,
+        "code": "B04-15-A01",
+        "bayCenterXZ": [
+          40.5,
+          20.97
+        ]
+      },
+      {
+        "rackKey": "vR1",
+        "side": "R",
+        "aisle": "B04",
+        "bay": 8,
+        "code": "B04-08-A01",
+        "bayCenterXZ": [
+          36.5,
+          9.77
+        ]
+      },
+      {
+        "rackKey": "vR1",
+        "side": "R",
+        "aisle": "B04",
+        "bay": 6,
+        "code": "B04-06-A01",
+        "bayCenterXZ": [
+          36.5,
+          6.99
+        ]
+      },
+      {
+        "rackKey": "vR1",
+        "side": "R",
+        "aisle": "B04",
+        "bay": 4,
+        "code": "B04-04-A01",
+        "bayCenterXZ": [
+          36.5,
+          4.21
+        ]
+      },
+      {
+        "rackKey": "vR1",
+        "side": "R",
+        "aisle": "B04",
+        "bay": 2,
+        "code": "B04-02-A01",
+        "bayCenterXZ": [
+          36.5,
+          1.43
+        ]
+      },
+      {
+        "rackKey": "vR2",
+        "side": "R",
+        "aisle": "B04",
+        "bay": 16,
+        "code": "B04-16-A01",
+        "bayCenterXZ": [
+          36.5,
+          20.97
+        ]
+      },
+      {
+        "rackKey": "vR2",
+        "side": "R",
+        "aisle": "B04",
+        "bay": 14,
+        "code": "B04-14-A01",
+        "bayCenterXZ": [
+          36.5,
+          18.19
+        ]
+      },
+      {
+        "rackKey": "vR2",
+        "side": "R",
+        "aisle": "B04",
+        "bay": 12,
+        "code": "B04-12-A01",
+        "bayCenterXZ": [
+          36.5,
+          15.41
+        ]
+      },
+      {
+        "rackKey": "vR2",
+        "side": "R",
+        "aisle": "B04",
+        "bay": 10,
+        "code": "B04-10-A01",
+        "bayCenterXZ": [
+          36.5,
+          12.63
+        ]
+      }
+    ]
+  },
+  "codes": [
+    {
+      "pattern": "{Zone}{Aisle:2}-{Bay:2}-{Level:A}{Pos:2}",
+      "parts": {
+        "zone": "A",
+        "aisle": 3,
+        "bay": 17,
+        "level": 3,
+        "position": 2
+      },
+      "code": "A03-17-C02"
+    },
+    {
+      "pattern": "{Zone}{Aisle:2}-{Bay:3}-{Level:A}{Pos:2}",
+      "parts": {
+        "zone": "B",
+        "aisle": 12,
+        "bay": 101,
+        "level": 1,
+        "position": 1
+      },
+      "code": "B12-101-A01"
+    },
+    {
+      "pattern": "{Zone}{Aisle:2}{Side}-{Bay:2}-{Level:2}{Pos:1}",
+      "parts": {
+        "zone": "C",
+        "aisle": 1,
+        "bay": 4,
+        "level": 10,
+        "position": 3,
+        "side": "R"
+      },
+      "code": "C01R-04-103"
+    }
+  ],
+  "rackCodes": [
+    {
+      "zone": "A",
+      "aisle": 3,
+      "side": "L",
+      "rackNo": 2,
+      "code": "RA03-L02"
+    }
+  ],
+  "payloads": [
+    {
+      "warehouseCode": "WH1",
+      "code": "A03-17-C02",
+      "prefix": true,
+      "payload": "WH1.A03-17-C02"
+    },
+    {
+      "warehouseCode": "WH1",
+      "code": "A03-17-C02",
+      "prefix": false,
+      "payload": "A03-17-C02"
+    }
+  ]
+}

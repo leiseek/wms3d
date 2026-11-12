@@ -44,6 +44,9 @@ DO $$ BEGIN
   IF NOT EXISTS (SELECT 1 FROM pg_roles WHERE rolname='wms_owner') THEN CREATE ROLE wms_owner LOGIN CREATEDB; END IF;
   IF NOT EXISTS (SELECT 1 FROM pg_roles WHERE rolname='wms_app') THEN CREATE ROLE wms_app LOGIN; END IF;
 END $$;
+-- 运行时角色默认超时（02 §5.1/B-N7）；长事务（发布）在 BEGIN 前会话级 SET（事务内 SET LOCAL 无法延长，R3）
+ALTER ROLE wms_app SET transaction_timeout = '30s';
+ALTER ROLE wms_app SET idle_in_transaction_session_timeout = '30s';
 SQL
 }
 

@@ -28,8 +28,15 @@ template() {
   flock 9
   if [ -z "$(Q "SELECT 1 FROM pg_database WHERE datname='$name'")" ]; then
     Q "CREATE DATABASE $name OWNER wms_owner" >/dev/null
-    # M0b 起：迁移以 wms_owner 运行到模板库（脚本存在时）
-    if (cd "$ROOT" && pnpm --filter @wms3d/api run --if-present db:migrate:url "$("$DEVDB" url "$name" owner)") >/dev/null 2>&1; then :; fi
+    # 迁移以 wms_owner 运行到模板库。R3：脚本存在但失败 → 删除模板并退出 1（不缓存空 schema 模板）；仅脚本不存在时跳过。
+    if node -e "process.exit(require('$ROOT/apps/api/package.json').scripts?.['db:migrate:url'] ? 0 : 1)" 2>/dev/null; then
+      if ! (cd "$ROOT" && pnpm --silent --filter @wms3d/api run db:migrate:url "$("$DEVDB" url "$name" owner)") >"/tmp/wms3d-tpl-${tag}.log" 2>&1; then
+        echo "模板库迁移失败（日志 /tmp/wms3d-tpl-${tag}.log）：" >&2
+        tail -20 "/tmp/wms3d-tpl-${tag}.log" >&2
+        Q "DROP DATABASE IF EXISTS $name WITH (FORCE)" >/dev/null
+        exit 1
+      fi
+    fi
     Q "ALTER DATABASE $name WITH IS_TEMPLATE true ALLOW_CONNECTIONS false" >/dev/null
     for old in $(Q "SELECT datname FROM pg_database WHERE datname LIKE 'wms\\_tpl\\_${tag}\\_%' AND datname <> '$name'"); do
       Q "ALTER DATABASE $old WITH IS_TEMPLATE false" >/dev/null; Q "DROP DATABASE IF EXISTS $old WITH (FORCE)" >/dev/null

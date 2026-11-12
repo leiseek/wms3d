@@ -1,5 +1,17 @@
-/**
- * @wms3d/contracts — Zod contracts (frozen in M0b, after R2)
- * M0a 骨架：只导出包元信息。真实接口在 M0b（R2 评审后）冻结，见 docs/10-dev-plan.md。
- */
-export const PACKAGE_NAME = '@wms3d/contracts' as const;
+export * from './common.ts';
+export * from './errors.ts';
+export * from './layout.ts';
+export * from './auth.ts';
+export * from './users.ts';
+export * from './warehouses.ts';
+export * from './skus.ts';
+export * from './scan-sync.ts';
+export * from './inventory.ts';
+export * from './counts.ts';
+export * from './labels.ts';
+export * from './misc.ts';
+export * from './events.ts';
+export * from './route-def.ts';
+export * from './routes.ts';
+export * from './jcs.ts';
+export * from './openapi.ts';

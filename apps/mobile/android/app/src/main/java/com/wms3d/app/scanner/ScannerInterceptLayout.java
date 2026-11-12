@@ -16,6 +16,23 @@ public class ScannerInterceptLayout extends FrameLayout {
     }
 
     private static volatile Interceptor interceptor = event -> false;
+    /** 是否已成功插入根布局（诊断页读取；R3：失败时 HID 拦截不可用，需要提示改用 SPP 或无焦点模式） */
+    private static volatile boolean installed = false;
+    private static volatile String installError = null;
+
+    public static boolean isInstalled() {
+        return installed;
+    }
+
+    /** 未安装时的原因（诊断页显示），已安装为 null */
+    public static String installError() {
+        return installError;
+    }
+
+    public static void markInstalled(boolean ok, String error) {
+        installed = ok;
+        installError = ok ? null : error;
+    }
 
     public static void setInterceptor(Interceptor value) {
         interceptor = value != null ? value : event -> false;

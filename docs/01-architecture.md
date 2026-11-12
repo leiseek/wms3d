@@ -11,7 +11,7 @@
 | 原生插件 | 自研 `@wms3d/capacitor-scanner`（Kotlin）：SPP、HID pre-IME 缓冲、feedback、证书指纹校验、Keystore 加密；相机 `@capacitor-mlkit/barcode-scanning`（`startScan` 捆绑模型）；`@capawesome/capacitor-torch`；outbox `@capacitor-community/sqlite`；`@capacitor/haptics` | mlkit 8.2.2、torch 8.0.2、sqlite 8.1.1、haptics 8.0.2；JDK 21、AGP 8.13、Gradle 8.14.3 |
 | 3D | three.js + @react-three/fiber + drei（`packages/twin3d`），按巷道分块的 InstancedMesh + troika 文本 | three **0.187.0**、R3F 9.8、drei 10.7、troika-three-text 0.53 |
 | 标签 | 服务端 pdfkit + bwip-js 自定义 drawing（矢量条码），ZPL 实验性 | pdfkit 0.20、bwip-js 4.11 |
-| 实时 | SSE（客户端 `@microsoft/fetch-event-source` 2.0，Bearer 鉴权） | |
+| 实时 | SSE（fetch + Bearer；自研客户端基于 `eventsource-parser` 4.1，`packages/api-client/src/sse.ts`；v2.1 起不用 fetch-event-source） | |
 | 本地存储 | Web：Dexie 4（缓存）；移动 outbox：SQLite | dexie 4.4、uuid 14（v7） |
 | 部署 | **路径 A（本机已验证）**：原生二进制 + systemd（PG17、Node、Caddy）；**路径 B**：docker compose（postgres/api/caddy/backup，交付但本机未验证） | |
 | 测试 | Vitest、Fastify inject + 真实 PG、Playwright（Chrome）、fast-check、Android Gradle 单测 | vitest 5.1、@playwright/test 1.65 |

@@ -34,7 +34,7 @@
 14.（v2.1）**盘点关闭时余额已不足**：整个关闭回滚，任务仍为 REVIEW，返回 `COUNT_RECOUNT_REQUIRED`，无部分调整（B-N4）。
 15.（v2.1）**换班代交**：A 的离线单在 A 登出、B 登录后由 B 的令牌提交成功，`performed_by`=A、`submitted_by`=B；**伪造 performedBy**（会话区间外或其他设备）→ 403 `PERFORMER_NOT_ALLOWED`（B-N6）。
 16.（v2.1）冲正规则：REVERSAL 不可再冲正、OPERATOR 冲正 COUNT_ADJUST 被拒、冲正到停用仓位 → `LOCATION_INACTIVE`（B-N15）。
-17.（v2.1）事务超时：人为 `pg_sleep(31)` 的事务被 `transaction_timeout` 终止（B-N7）。
+17.（v2.1）事务超时：人为 `pg_sleep(31)` 的事务被 `transaction_timeout` 终止（B-N7）；（v2.2，R3）发布事务运行 60 秒**不被**终止（`withLongTransaction` 在 BEGIN 前会话级设 120s）；事务内 `SET LOCAL` 不能延长计时的反例也须保留为测试（M0b 已在 PG 17.11 用短超时等比验证，见 `apps/api/src/db/db.test.ts`）。
 - **基于模型的测试**：fast-check `commands` + 内存模型 oracle（随机 INBOUND/OUTBOUND/TRANSFER/ADJUST/REVERSAL/重放），每步比对余额，结束跑对账。
 
 ## 3. 测试数据库

@@ -1,7 +1,9 @@
 package com.wms3d.app.scanner;
 
 import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertNull;
+import static org.junit.Assert.assertTrue;
 
 import org.junit.Test;
 
@@ -33,9 +35,21 @@ public class ScanKeyBufferTest {
         assertEquals("6901234567890", b.flushIfIdle(300));
     }
 
-    @Test public void overflowResets() {
+    /** R3：超长帧整帧丢弃直到终止符，尾部不得当作新的一帧输出 */
+    @Test public void overflowDiscardsUntilTerminator() {
         ScanKeyBuffer b = new ScanKeyBuffer(4, 150);
-        assertNull(feed(b, "ABCDE", 0));
-        assertEquals("F", feed(b, "F\r", 10));
+        assertNull(feed(b, "ABCDEFGH\r", 0));
+        assertTrue(b.overflowCount() == 1);
+        assertFalse(b.isDiscarding());
+        assertEquals("XY", feed(b, "XY\r", 20));
+    }
+
+    @Test public void overflowDiscardEndsOnIdle() {
+        ScanKeyBuffer b = new ScanKeyBuffer(4, 150);
+        assertNull(feed(b, "ABCDEFGH", 0));
+        assertTrue(b.isDiscarding());
+        assertNull(b.flushIfIdle(500));
+        assertFalse(b.isDiscarding());
+        assertEquals("OK", feed(b, "OK\r", 600));
     }
 }

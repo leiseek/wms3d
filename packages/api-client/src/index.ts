@@ -1,5 +1,16 @@
 /**
- * @wms3d/api-client — Typed API client + MSW mocks (generated in M0b)
- * M0a 骨架：只导出包元信息。真实接口在 M0b（R2 评审后）冻结，见 docs/10-dev-plan.md。
+ * @wms3d/api-client — 由 @wms3d/contracts 驱动的类型化客户端 + SSE。
+ * Mock：`@wms3d/api-client/mock`（core + MSW handlers）、`@wms3d/api-client/mock-server`（Fastify，`pnpm mock`）。
  */
 export const PACKAGE_NAME = '@wms3d/api-client' as const;
+export {
+  ApiError,
+  buildPath,
+  createApiClient,
+  type ApiClient,
+  type ApiClientOptions,
+  type CallArgs,
+  type CallResult,
+} from './client.ts';
+export { connectEvents, type EventStreamOptions } from './sse.ts';
+export { newIdempotencyKey } from './idempotency.ts';

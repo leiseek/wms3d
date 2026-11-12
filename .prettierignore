@@ -5,3 +5,7 @@ apps/mobile/android
 docs
 coverage
 *.md
+**/public/mockServiceWorker.js
+packages/contracts/openapi.json
+packages/domain/src/__fixtures__/geometry-golden.json
+apps/api/src/db/migrations/meta

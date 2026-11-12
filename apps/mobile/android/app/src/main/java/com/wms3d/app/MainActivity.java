@@ -1,6 +1,7 @@
 package com.wms3d.app;
 
 import android.os.Bundle;
+import android.util.Log;
 import android.view.View;
 import android.view.ViewGroup;
 
@@ -15,22 +16,48 @@ import com.getcapacitor.BridgeActivity;
  * 当前拦截器为放行模式；白名单、缓冲与 JS 事件桥在 M3 由 native/capacitor-scanner 接入。
  */
 public class MainActivity extends BridgeActivity {
+    private static final String TAG = "wms3d.scanner";
+
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         wrapContentRoot();
     }
 
+    /**
+     * R3：任何失败都记录 Log.w 并通过 {@link ScannerInterceptLayout#isInstalled()} 暴露给诊断页；
+     * 不抛出（启动不能因拦截器失败而崩溃）。Robolectric 测试在 M3（WS-C）。
+     */
     private void wrapContentRoot() {
-        ViewGroup content = findViewById(android.R.id.content);
-        if (content == null || content.getChildCount() != 1) return;
-        View root = content.getChildAt(0);
-        if (root instanceof ScannerInterceptLayout) return;
-        ViewGroup.LayoutParams lp = root.getLayoutParams();
-        content.removeView(root);
-        ScannerInterceptLayout wrapper = new ScannerInterceptLayout(this);
-        wrapper.addView(root, new ViewGroup.LayoutParams(
-                ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.MATCH_PARENT));
-        content.addView(wrapper, lp);
+        try {
+            ViewGroup content = findViewById(android.R.id.content);
+            if (content == null) {
+                fail("android.R.id.content 不存在");
+                return;
+            }
+            if (content.getChildCount() != 1) {
+                fail("content 子节点数为 " + content.getChildCount() + "（期望 1）");
+                return;
+            }
+            View root = content.getChildAt(0);
+            if (root instanceof ScannerInterceptLayout) {
+                ScannerInterceptLayout.markInstalled(true, null);
+                return;
+            }
+            ViewGroup.LayoutParams lp = root.getLayoutParams();
+            content.removeView(root);
+            ScannerInterceptLayout wrapper = new ScannerInterceptLayout(this);
+            wrapper.addView(root, new ViewGroup.LayoutParams(
+                    ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.MATCH_PARENT));
+            content.addView(wrapper, lp);
+            ScannerInterceptLayout.markInstalled(true, null);
+        } catch (RuntimeException e) {
+            fail(e.getClass().getSimpleName() + ": " + e.getMessage());
+        }
+    }
+
+    private static void fail(String reason) {
+        Log.w(TAG, "pre-IME 拦截层未安装：" + reason);
+        ScannerInterceptLayout.markInstalled(false, reason);
     }
 }
