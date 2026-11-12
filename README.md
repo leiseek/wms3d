@@ -3,7 +3,7 @@
 面向中小仓库的轻量 WMS：PC 管理后台 + Android 平板（蓝牙扫码枪 HID/SPP）+ Android 手机（摄像头扫码），
 支持仓位/货架设计、标签打印、扫码快速入出库，以及移动端 3D 数字孪生实时库存展示与 SKU 定位。
 
-当前阶段：**Phase 1 设计（v1）**。设计文档见 [`docs/`](docs/)：
+当前阶段：**Phase 1 设计（v2，已处理 R1 评审）**。设计文档见 [`docs/`](docs/)：
 
 | 文档 | 内容 |
 |---|---|
@@ -20,4 +20,5 @@
 | [10-dev-plan](docs/10-dev-plan.md) | 里程碑与并行工作流 |
 | [adr/](docs/adr/) | 架构决策记录 |
 | [sources](docs/sources.md) | 调研参考资料 |
+| [reviews/](docs/reviews/) | 评审意见与处理结果（R1-resolution） |
 | [CHANGELOG-design](docs/CHANGELOG-design.md) | 设计版本记录 |
