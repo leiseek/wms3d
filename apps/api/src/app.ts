@@ -55,6 +55,17 @@ export function buildApp(opts: AppOptions = {}): WmsApp {
     reply.header('X-Content-Type-Options', 'nosniff');
     reply.header('X-Frame-Options', 'DENY');
     reply.header('Referrer-Policy', 'no-referrer');
+    reply.header('Permissions-Policy', 'camera=(), microphone=(), geolocation=()');
+    reply.header('X-Permitted-Cross-Domain-Policies', 'none');
+    const docs = req.url.includes('/docs') || req.url.includes('openapi.json');
+    reply.header(
+      'Content-Security-Policy',
+      docs
+        ? "default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline'; img-src 'self' data:; connect-src 'self'"
+        : "default-src 'none'; frame-ancestors 'none'; base-uri 'none'; form-action 'none'",
+    );
+    if (req.protocol === 'https' || req.headers['x-forwarded-proto'] === 'https')
+      reply.header('Strict-Transport-Security', 'max-age=31536000; includeSubDomains');
   });
   void app.register(cookie);
 

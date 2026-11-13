@@ -43,7 +43,7 @@ export function demoTwinModel(layoutVersion = 1): TwinModel {
   });
 }
 
-/** 演示仓的 occupancy（与 mock 种子库存一致：约 1/3 仓位有货）。 */
+/** 演示仓的 occupancy（与 mock 种子库存一致：约 65% 货架仓位有货）。 */
 export function demoOccupancy(model: TwinModel): Occupancy {
   const byLoc = new Map<string, { q: number; n: number }>();
   for (const b of demo.demoBalances) {

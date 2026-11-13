@@ -57,8 +57,9 @@ export function DesignerCanvas(p: DesignerCanvasProps) {
       y: (height - doc.warehouse.depthM * s) / 2,
     });
   };
-  // 只在首次拿到真实尺寸、或仓库尺寸变化时自动适配；画布高度变化（立面视图展开）不重置视图，避免拖动中跳变
-  const fitKey = `${doc.warehouse.widthM}x${doc.warehouse.depthM}`;
+  // 仓库尺寸或画布宽度变化时适配（打开 3D 分屏后宽度变窄须重适配，才能显示整仓 60m）；
+  // 高度变化（立面展开）不重置，避免拖动中跳变。
+  const fitKey = `${doc.warehouse.widthM}x${doc.warehouse.depthM}:${width}`;
   const sized = width > 200 && height > 200;
   // eslint-disable-next-line react-hooks/exhaustive-deps
   useEffect(() => void (sized && fit()), [fitKey, sized]);

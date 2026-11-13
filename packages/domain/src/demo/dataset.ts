@@ -342,12 +342,29 @@ export const demoLocations = demoExpanded.locations.map((l) => ({
 }));
 export const demoRacks = demoExpanded.racks.map((r) => ({ ...r, id: demoId(`rack:WH1:${r.key}`) }));
 
-/** 初始库存（确定性）：约 1/3 仓位有货。seed 时以 INBOUND 交易写入（走 postTransaction）。 */
-export const demoBalances = demoLocations
-  .filter((l, i) => l.rackKey && i % 3 === 0)
-  .map((l, i) => ({
+/**
+ * 初始库存（确定性）：货架仓位约 65% 有货（09 §4，交付演示 60–70%）。
+ * 下标 i%20===1（含 A01-01-A02）留空，供后台「空仓位停用 / 有库存拒绝」用例使用。
+ * 下标前若干个仓位分给高安全库存 SKU 且数量很低，保证看板出现低库存预警。
+ * seed 时以 INBOUND 交易写入（走 postTransaction）。
+ */
+const rackLocs = demoLocations.filter((l) => l.rackKey);
+const occupiedLocs = rackLocs.filter((_, i) => i % 20 < 14 && i % 20 !== 1);
+const lowSkuIds = demoSkus.filter((_, i) => i % 5 === 0).map((s) => s.id);
+const regularSkus = demoSkus.filter((s) => !lowSkuIds.includes(s.id));
+export const demoBalances = occupiedLocs.map((l, i) => {
+  if (i < lowSkuIds.length) {
+    return {
+      locationId: l.id,
+      locationCode: l.code,
+      skuId: lowSkuIds[i]!,
+      onHand: 2 + (i % 3),
+    };
+  }
+  return {
     locationId: l.id,
     locationCode: l.code,
-    skuId: demoSkus[i % demoSkus.length]!.id,
-    onHand: 5 + ((i * 37) % 120),
-  }));
+    skuId: regularSkus[i % regularSkus.length]!.id,
+    onHand: 8 + ((i * 37) % 80),
+  };
+});

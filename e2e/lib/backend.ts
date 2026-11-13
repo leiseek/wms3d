@@ -116,6 +116,18 @@ export async function startReal(port = ports.real): Promise<Backend> {
       `${APP_ROOT}apps/api/src/db/seed-demo.ts`,
       pgUrl(db, 'wms_app'),
     ]);
+    sh(
+      process.execPath,
+      [
+        '--experimental-strip-types',
+        `${APP_ROOT}apps/api/src/modules/inventory/seed-stock.ts`,
+        pgUrl(db, 'wms_app'),
+      ],
+      cleanEnv({
+        DATABASE_URL: pgUrl(db, 'wms_app'),
+        MIGRATION_DATABASE_URL: pgUrl(db, 'wms_owner'),
+      }),
+    );
   } catch (e) {
     dropDb();
     throw e;

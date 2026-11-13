@@ -1,6 +1,6 @@
 {
   "name": "@wms3d/scanner",
-  "version": "0.0.0",
+  "version": "0.1.0",
   "private": true,
   "type": "module",
   "description": "Scanner abstraction: HID/SPP/camera ScanHub (WS-C)",

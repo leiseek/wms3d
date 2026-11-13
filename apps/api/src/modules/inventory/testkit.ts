@@ -30,7 +30,9 @@ export const RCV = loc('RCV-01');
 let freshIdx = 0;
 /** 依次分配一个尚未被本测试文件用过的货架仓位（容量 200） */
 export const fresh = (): string => {
-  const racked = LOCS.filter((l) => l.rackKey);
+  const stocked = new Set(demo.demoBalances.map((b) => b.locationId));
+  const racked = LOCS.filter((l) => l.rackKey && !stocked.has(l.id));
+  if (!racked.length) throw new Error('no empty demo rack location');
   const l = racked[freshIdx++ % racked.length]!;
   return l.id;
 };

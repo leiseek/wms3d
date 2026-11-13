@@ -142,7 +142,7 @@ test('黄金路径：设计→发布→打印核对→上架→3D→定位→出
   await mobilePage.getByTestId('query-input').fill(SKU_CODE);
   await mobilePage.getByTestId('query-go').click();
   await expect(mobilePage.getByTestId('locate-result')).toBeVisible({ timeout: 20_000 });
-  await expect(mobilePage.getByTestId('locate-row').first()).toContainText(empty!.code);
+  await expect(mobilePage.getByTestId('locate-row').filter({ hasText: empty!.code })).toBeVisible();
   await mobilePage.getByTestId('locate-3d').click();
   await expect(mobilePage.getByTestId('twin-page')).toBeVisible();
   await expect(mobilePage.getByTestId('twin-highlight')).toContainText(SKU_CODE);

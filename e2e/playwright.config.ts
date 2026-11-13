@@ -74,6 +74,24 @@ export default defineConfig({
               },
             },
           },
+          {
+            name: 'ui-v010',
+            testDir: './tests/ui',
+            testMatch: /v010\..*spec\.ts/,
+            use: {
+              locale: 'zh-CN',
+              timezoneId: 'America/Los_Angeles',
+              launchOptions: {
+                executablePath: chrome,
+                args: [
+                  '--ignore-gpu-blocklist',
+                  '--enable-unsafe-swiftshader',
+                  '--use-angle=swiftshader',
+                  '--enable-webgl',
+                ],
+              },
+            },
+          },
         ]
       : []),
   ],

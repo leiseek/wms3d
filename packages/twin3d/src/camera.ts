@@ -57,7 +57,7 @@ export function fitCameraToBox(
   aspect: number,
   fovDeg: number,
   dir: Vec3,
-  padding = 1.22,
+  padding = 1.08,
 ): { pos: Vec3; target: Vec3 } {
   const target = boxCenter(box);
   // 俯视时看向地面中心，避免目标浮在半空
