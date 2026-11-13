@@ -118,23 +118,39 @@ describe.skipIf(!pgAvailable)('auth（03 §2，09 §2 #11）', () => {
     await expect(login(k.app, 'op2', { ip: '10.9.9.3' })).resolves.toBeTruthy();
   });
 
-  it('#11 并发刷新：同设备 60s 宽限内返回兄弟令牌，均可用；随后串行轮换', async () => {
+  it('#11 并发刷新：同设备 60s 宽限内只签发 1 个兄弟，二者均可轮换（CR1 #2）', async () => {
     const s = await login(k.app, 'op1');
     const rs = await Promise.all([
       refresh(s.refreshToken, s.deviceId),
       refresh(s.refreshToken, s.deviceId),
-      refresh(s.refreshToken, s.deviceId),
     ]);
-    expect(rs.map((r) => r.statusCode)).toEqual([200, 200, 200]);
+    expect(rs.map((r) => r.statusCode)).toEqual([200, 200]);
     const toks = rs.map((r) => TokenResponse.parse(r.json()).refreshToken!);
-    expect(new Set(toks).size).toBe(3);
+    expect(new Set(toks).size).toBe(2);
     for (const t of toks) expect((await refresh(t, s.deviceId)).statusCode).toBe(200);
     const fam = await k.pool.query(
       `SELECT count(*)::int AS n, count(*) FILTER (WHERE sibling_of IS NOT NULL)::int AS sib, count(*) FILTER (WHERE revoked_at IS NOT NULL)::int AS rev
          FROM refresh_tokens WHERE family_id = $1`,
       [s.sessionId],
     );
-    expect(fam.rows[0]).toMatchObject({ n: 7, sib: 2, rev: 0 });
+    expect(fam.rows[0]).toMatchObject({ n: 5, sib: 1, rev: 0 });
+  });
+
+  it('宽限期内第二次重用父 token → 401 并撤销 family（CR1 #2）', async () => {
+    const s = await login(k.app, 'op1', { ip: '10.11.12.13' });
+    const r1 = await refresh(s.refreshToken, s.deviceId);
+    expect(r1.statusCode).toBe(200);
+    const sib = await refresh(s.refreshToken, s.deviceId);
+    expect(sib.statusCode).toBe(200); // 第一个兄弟
+    const third = await refresh(s.refreshToken, s.deviceId);
+    expect(third.statusCode).toBe(401);
+    const fam = await k.pool.query(
+      `SELECT bool_and(revoked_at IS NOT NULL) AS all FROM refresh_tokens WHERE family_id = $1`,
+      [s.sessionId],
+    );
+    expect(fam.rows[0].all).toBe(true);
+    const legit = TokenResponse.parse(r1.json()).refreshToken!;
+    expect((await refresh(legit, s.deviceId)).statusCode).toBe(401);
   });
 
   it('跨设备重用 → 撤销整个家族并审计；宽限过期后重放 → 撤销', async () => {

@@ -20,6 +20,8 @@ import {
   WH2,
   type Kit,
 } from './testkit.ts';
+import { applyTxn } from './engine.ts';
+import { withTx } from './util.ts';
 
 const S = (i: number) => SKUS[i]!.id;
 const code = (r: { json(): unknown }) => (r.json() as { code?: string }).code;
@@ -692,5 +694,61 @@ describe.skipIf(!pgAvailable)('库存引擎 postTransaction（02 §6）', () => 
         await k.owner.query(`UPDATE users SET is_active = true WHERE id = $1`, [USERS.op1]);
       }
     });
+  });
+
+  it('停用 SKU 后禁止入库 / 移入（CR1 #7）', async () => {
+    const loc = fresh();
+    await k.owner.query(`UPDATE skus SET is_active = false WHERE id = $1`, [S(4)]);
+    try {
+      const inbound = await k.txn(
+        'op1',
+        cmd('INBOUND', [{ locationId: loc, skuId: S(4), qty: 1 }]),
+      );
+      expect(inbound.statusCode).toBe(422);
+      expect(code(inbound)).toBe('SKU_INACTIVE');
+      const inboundFirst = await k.txn(
+        'op1',
+        cmd('INBOUND', [{ locationId: loc, skuId: S(0), qty: 2 }]),
+      );
+      expect([200, 201]).toContain(inboundFirst.statusCode);
+      const xfer = await k.txn(
+        'op1',
+        cmd('TRANSFER', [{ fromLocationId: loc, toLocationId: RCV, skuId: S(4), qty: 1 }]),
+      );
+      expect(xfer.statusCode).toBe(422);
+      expect(code(xfer)).toBe('SKU_INACTIVE');
+    } finally {
+      await k.owner.query(`UPDATE skus SET is_active = true WHERE id = $1`, [S(4)]);
+    }
+  });
+
+  it('加锁后仓位编码已变 → LAYOUT_STALE（CR1 #6）', async () => {
+    const loc = fresh();
+    const row = await k.db.pool.query<{ code: string }>(
+      `SELECT code FROM locations WHERE id = $1`,
+      [loc],
+    );
+    await expect(
+      withTx(k.db.pool, (c) =>
+        applyTxn(c, {
+          warehouseId: WH1,
+          type: 'INBOUND',
+          requestHash: randomUUID().replace(/-/g, ''),
+          performedBy: USERS.op1,
+          submittedBy: USERS.op1,
+          deviceId: 'dev-test-0001',
+          idempotencyKey: randomUUID(),
+          createdOffline: false,
+          clientCreatedAt: null,
+          plan: {
+            lockLocations: [loc],
+            hasInbound: true,
+            deltas: [{ locationId: loc, skuId: S(0), lotNo: '', delta: 1 }],
+          },
+          enforceCapacity: true,
+          expectedLocationCodes: new Map([[loc, row.rows[0]!.code + '-STALE']]),
+        }),
+      ),
+    ).rejects.toMatchObject({ code: 'LAYOUT_STALE' });
   });
 });

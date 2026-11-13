@@ -16,7 +16,7 @@ fi
 # shellcheck source=backup-lib.sh
 source "$DIR/backup-lib.sh"
 
-SRC_DB="${DATABASE_URL##*/}"; REPORT_DIR="/workspace/wms3d-artifacts/ci"
+SRC_DB=""; REPORT_DIR="/workspace/wms3d-artifacts/ci"
 while [ $# -gt 0 ]; do
   case "$1" in
     --db) SRC_DB="$2"; shift 2;;
@@ -24,6 +24,13 @@ while [ $# -gt 0 ]; do
     *) die "未知参数：$1";;
   esac
 done
+if [ -z "$SRC_DB" ]; then
+  if [ -n "${DATABASE_URL:-}" ]; then
+    SRC_DB="${DATABASE_URL##*/}"
+  else
+    SRC_DB="${WMS_DB:-wms_lead}"
+  fi
+fi
 guard_db "$SRC_DB"
 TS="$(utc_ts)"
 WORK="$(mktemp -d "/tmp/wms3d-drill-${SRC_DB}-XXXX")"; chmod 700 "$WORK"

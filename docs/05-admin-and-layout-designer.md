@@ -54,6 +54,6 @@ flowchart LR
 表单 + 实时立面小预览：列数、层数、每层位数、列宽、深度、各层净高、横梁/立柱尺寸、默认容量。常用预设：重型托盘架（2.7m×1.0m×4 层）、中型层板架（1.5m×0.6m×5 层×3 位）、轻型货架（1.0m×0.5m×5 层×4 位）。
 
 ## 3. 其他页面要点
-- **SKU CSV 导入**：模板列 `code,name,spec,uom,barcode,pack_qty,safety_stock,length_mm,width_mm,height_mm,weight_g`；同一 SKU 多条码用多行；预检返回逐行错误（重复、条码冲突、格式），确认后**每 1000 行一个事务**分批 upsert（v2.1 B-N7：单个大事务会超过 `transaction_timeout` 并让增量同步漏行；按 code upsert 天然幂等，失败可从断点重跑）；≤ 5 万行，流式解析（papaparse 前端预览 + 服务端 csv-parse 权威）。
+- **SKU CSV 导入**：模板列 `code,name,spec,uom,barcode,pack_qty,safety_stock,length_mm,width_mm,height_mm,weight_g`；同一 SKU 多条码用多行；预检返回逐行错误（重复、条码冲突、格式），确认后**每 1000 行一个事务**分批 upsert（v2.1 B-N7：单个大事务会超过 `transaction_timeout` 并让增量同步漏行；按 code upsert 天然幂等，失败可从断点重跑）；≤ 5 万行，流式解析（papaparse 前端预览 + 服务端 csv-parse 权威）。**更新已有 SKU 时，CSV 缺列或该单元格为空则保留库中原值**（不把安全库存/尺寸/单位冲成默认值）；新建 SKU 缺省 `safety_stock=0`、`uom=EA`，尺寸与规格为空。表头仍必须含 `code` 与 `name`。
 - **库存查询**：SKU 视图（总量 + 展开仓位明细）/ 仓位视图；每行"在 3D 中定位"跳转。
 - **USB 扫码枪**在 PC 也可用于搜索框（JS HID 兜底层）。

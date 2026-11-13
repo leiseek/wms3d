@@ -11,6 +11,7 @@ import {
   maxModulesFor,
   renderLabelsPdf,
   renderLabelsZpl,
+  zplEscape,
   skuSymbology,
   xDimension,
   type LabelItem,
@@ -232,6 +233,21 @@ describe('PDF / ZPL 渲染（结构）', () => {
     expect(zpl).toContain('^BQ');
     expect(zpl).toContain('^XZ');
     expect(zpl).not.toContain('一号仓库');
+  });
+
+  it('ZPL ^FD 转义 ^ ~ _，注入指令不会提前结束标签（CR1 #9）', async () => {
+    expect(zplEscape('A^XZ~JR_B')).toBe('A_5EXZ_7EJR_5FB');
+    const zpl = await renderLabelsZpl({
+      template: 'sku-60x40',
+      dpi: 203,
+      items: [{ kind: 'SKU', code: 'X', payload: 'ABC^XZ', title: 'N~JR' }],
+    });
+    expect(zpl).toContain('_5EXZ');
+    expect(zpl).toContain('_7EJR');
+    // 转义后不应再出现裸 ^FDABC^XZ（会提前结束）
+    expect(zpl).not.toMatch(/\^FDABC\^XZ/);
+    expect(zpl.trim().endsWith('^XZ')).toBe(true);
+    expect(zpl.split('^XZ').length).toBe(2); // 仅结尾一处
   });
 });
 

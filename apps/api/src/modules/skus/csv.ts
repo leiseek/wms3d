@@ -56,7 +56,7 @@ export function parseCsv(text: string): string[][] {
 /** 导出防公式注入（08 §2）：= + - @ TAB CR 开头的单元格前加 '，并按需加引号。 */
 export function csvCell(v: unknown): string {
   let s = v === null || v === undefined ? '' : String(v);
-  if (/^[=+\-@\t\r]/.test(s)) s = `'${s}`;
+  if (/^[=+\-@\t\r]/.test(s.trimStart())) s = `'${s.trimStart()}`;
   return /[",\r\n]/.test(s) ? `"${s.replace(/"/g, '""')}"` : s;
 }
 

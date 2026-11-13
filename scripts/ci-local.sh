@@ -58,11 +58,13 @@ if [ "$MODE" != quick ]; then
   if [ "$E2E" = 1 ]; then
     run e2e-mock bash scripts/e2e.sh mock --reporter=list
     if [ "$PG_UP" = 1 ]; then run e2e-real bash scripts/e2e.sh real --reporter=list; else skip e2e-real "PG 未运行"; fi
+    run e2e-admin env CI=1 PORT_API=4091 PORT_ADMIN=4092 CHROME_PATH="${CHROME_PATH:-/opt/google/chrome/chrome}" pnpm exec playwright test -c apps/admin/e2e/playwright.config.ts --reporter=list
+    run e2e-mobile-ui env WMS_E2E_PORT=4339 WMS_E2E_CHROME="${WMS_E2E_CHROME:-${CHROME_PATH:-/opt/google/chrome/chrome}}" pnpm exec playwright test -c apps/mobile/e2e/playwright.config.ts --reporter=list
   else skip e2e "--no-e2e"; fi
 fi
 if [ "$MODE" = full ]; then
   run format-check pnpm format:check
-  if [ "$PG_UP" = 1 ]; then run backup-drill bash scripts/backup-drill.sh --report-dir "$OUT"; else skip backup-drill "PG 未运行"; fi
+  if [ "$PG_UP" = 1 ]; then run backup-drill bash scripts/backup-drill.sh --db wms_lead --report-dir "$OUT"; else skip backup-drill "PG 未运行"; fi
   run native-smoke bash infra/native/install.sh --foreground --smoke
 fi
 if [ "$APK" = 1 ]; then run apk pnpm apk:debug; fi

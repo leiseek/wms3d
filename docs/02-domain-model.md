@@ -194,7 +194,7 @@ INSERT INTO inv_txns (...) VALUES (...) ON CONFLICT (warehouse_id, idempotency_k
 SELECT id, is_active, max_qty, kind, rack_id FROM locations
  WHERE id = ANY($ids) AND warehouse_id = $wh ORDER BY id FOR SHARE;           -- 行数不符 → 404（跨仓或不存在）
 --   若命令含入库方向且（仓位设了 effective_max 或仓库禁止混放）→ 对这些仓位改用 FOR UPDATE（串行化同仓位入库）
---   锁内校验：is_active（LOCATION_INACTIVE）、容量（LOCATION_CAPACITY_EXCEEDED，按仓位全部 SKU 合计）、混放（MIXED_SKU_NOT_ALLOWED）
+--   锁内校验：is_active（LOCATION_INACTIVE）、用编码解析出的仓位复核 code（不一致 → LAYOUT_STALE）、SKU 停用仅拒绝 INBOUND/TRANSFER 入库方向（SKU_INACTIVE；OUTBOUND/ADJUST/盘点仍允许）、容量（LOCATION_CAPACITY_EXCEEDED，按仓位全部 SKU 合计）、混放（MIXED_SKU_NOT_ALLOWED）
 -- ③ 余额（按 (location_id, sku_id, lot_no) 升序逐键）
 --   扣减：UPDATE stock_balances SET on_hand = on_hand - $q, updated_at = now()
 --          WHERE location_id=$l AND sku_id=$s AND lot_no=$lot AND on_hand >= $q RETURNING on_hand;   -- 0 行 → 422 INSUFFICIENT_STOCK，整单回滚
@@ -235,6 +235,8 @@ COMMIT;  -- 提交后发布进程内事件 stock.changed
 | 混放 | `warehouses.allow_mixed_sku`（默认允许），在锁内校验 |
 | 容量 | `effective_max`，锁内按仓位全部 SKU 合计校验；MANAGER 可带 `force=true`（审计） |
 | 停用仓位 | 有库存不能停用/删除（锁内校验） |
+| 停用 SKU | INBOUND / TRANSFER（含移入）拒绝，422 `SKU_INACTIVE`；OUTBOUND、ADJUST、盘点允许消化或调整已停用 SKU |
+| 布局并发 | 解析仓位编码后在事务内加锁复核 `locations.code`，已变则 422 `LAYOUT_STALE` |
 | 负库存 | 禁止（条件扣减 + CHECK） |
 | 离线库存不足 | 仅 `created_offline` 的单据进入客户端 `WAITING_STOCK` 延迟重试（04 §5，v2.1 B-N5）；在线创建的单据收到 `INSUFFICIENT_STOCK` 立即打断提示 |
 | 低库存 | SKU 总在库 < safety_stock → 预警列表 |

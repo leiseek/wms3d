@@ -760,8 +760,10 @@ export const routes = {
     responses: { 201: TxnResult, 200: TxnResult },
     errors: [
       'IDEMPOTENCY_KEY_REUSED',
+      'LAYOUT_STALE',
       'INSUFFICIENT_STOCK',
       'LOCATION_INACTIVE',
+      'SKU_INACTIVE',
       'LOCATION_CAPACITY_EXCEEDED',
       'MIXED_SKU_NOT_ALLOWED',
       'UNKNOWN_BARCODE',
@@ -790,6 +792,7 @@ export const routes = {
       'REVERSAL_NOT_ALLOWED',
       'INSUFFICIENT_STOCK',
       'LOCATION_INACTIVE',
+      'SKU_INACTIVE',
       'FORBIDDEN',
     ],
     owner: 'ws-a2',

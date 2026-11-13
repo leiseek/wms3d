@@ -17,6 +17,7 @@ import type { MovementPlan } from '@wms3d/domain';
 import type { EventBus } from '../../lib/events.ts';
 import { ApiError } from '../../lib/problem.ts';
 import { loadTxns } from './views.ts';
+import { afterLocationsLocked } from '../../lib/tx-hooks.ts';
 import { PG, pgCode, pgConstraint, withTx, writeAudit, type Queryable } from './util.ts';
 
 export interface EngineInput {
@@ -41,6 +42,8 @@ export interface EngineInput {
   force?: boolean;
   /** 非空 → 同事务写审计 */
   audit?: { action: string; ip?: string | null; traceId?: string | null; extra?: unknown } | null;
+  /** 用编码解析出的仓位：加锁后复核 code，不一致 → LAYOUT_STALE（CR1 #6） */
+  expectedLocationCodes?: ReadonlyMap<string, string>;
 }
 
 export interface EngineOutcome {
@@ -92,12 +95,15 @@ async function lockLocations(
   return new Map(rows.map((r) => [r.id, r]));
 }
 
-async function skuCodes(q: Queryable, ids: string[]): Promise<Map<string, string>> {
-  const r = await q.query<{ id: string; code: string }>(
-    `SELECT id, code FROM skus WHERE id = ANY($1::uuid[])`,
+async function skuCodes(
+  q: Queryable,
+  ids: string[],
+): Promise<Map<string, { code: string; isActive: boolean }>> {
+  const r = await q.query<{ id: string; code: string; is_active: boolean }>(
+    `SELECT id, code, is_active FROM skus WHERE id = ANY($1::uuid[])`,
     [ids],
   );
-  return new Map(r.rows.map((x) => [x.id, x.code]));
+  return new Map(r.rows.map((x) => [x.id, { code: x.code, isActive: x.is_active }]));
 }
 
 /** 在调用方已开启的事务内执行。抛 ApiError 时调用方必须回滚。 */
@@ -165,17 +171,32 @@ export async function applyTxn(q: Queryable, input: EngineInput): Promise<Engine
   // ② 锁仓位 + 锁内校验
   const inboundLocs = new Set(plan.deltas.filter((d) => d.delta > 0).map((d) => d.locationId));
   const locs = await lockLocations(q, warehouseId, plan.lockLocations, inboundLocs);
+  await afterLocationsLocked('inventory-locked', plan.lockLocations);
   for (const id of plan.lockLocations) {
     const l = locs.get(id)!;
     if (!l.is_active)
       throw new ApiError('LOCATION_INACTIVE', `仓位 ${l.code} 已停用`, {
         context: { locationId: l.id, locationCode: l.code },
       });
+    const expected = input.expectedLocationCodes?.get(id);
+    if (expected && l.code !== expected)
+      throw new ApiError('LAYOUT_STALE', `仓位编码已变更（扫到 ${expected}，当前 ${l.code}）`, {
+        context: { locationId: l.id, expectedCode: expected, actualCode: l.code },
+      });
   }
   const skuIds = [...new Set(plan.deltas.map((d) => d.skuId))];
   const codes = await skuCodes(q, skuIds);
   const missingSku = skuIds.find((s) => !codes.has(s));
   if (missingSku) throw new ApiError('NOT_FOUND', `SKU 不存在：${missingSku}`);
+  if (input.type === 'INBOUND' || input.type === 'TRANSFER') {
+    const inactive = skuIds.filter((s) => codes.get(s) && !codes.get(s)!.isActive);
+    if (inactive.length) {
+      const s = codes.get(inactive[0]!)!;
+      throw new ApiError('SKU_INACTIVE', `SKU ${s.code} 已停用，不能入库或移库`, {
+        context: { skuId: inactive[0], skuCode: s.code },
+      });
+    }
+  }
 
   const checkCap = input.enforceCapacity && !input.force;
   const capLocs = [...inboundLocs].filter(
@@ -233,7 +254,7 @@ export async function applyTxn(q: Queryable, input: EngineInput): Promise<Engine
         );
         const available = a.rows[0]?.on_hand ?? 0;
         const l = locs.get(d.locationId)!;
-        const skuCode = codes.get(d.skuId)!;
+        const skuCode = codes.get(d.skuId)!.code;
         throw new ApiError('INSUFFICIENT_STOCK', `${l.code} 上 ${skuCode} 仅有 ${available}`, {
           context: {
             locationId: d.locationId,

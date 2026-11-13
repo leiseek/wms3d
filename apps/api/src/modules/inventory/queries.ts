@@ -201,7 +201,7 @@ export function csvCell(v: unknown): string {
   if (v === null || v === undefined) return '';
   if (typeof v === 'number') return String(v);
   let s = String(v);
-  if (/^[=+\-@\t\r]/.test(s)) s = `'${s}`;
+  if (/^[=+\-@\t\r]/.test(s.trimStart())) s = `'${s.trimStart()}`;
   return /[",\r\n]/.test(s) ? `"${s.replace(/"/g, '""')}"` : s;
 }
 

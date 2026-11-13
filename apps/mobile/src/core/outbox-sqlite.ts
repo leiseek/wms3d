@@ -143,4 +143,22 @@ export class SqliteOutboxStore implements OutboxStore {
   async clear(): Promise<void> {
     await this.db.run('DELETE FROM outbox', []);
   }
+  async claim(
+    id: string,
+    allowed: readonly OutboxStatus[],
+    patch: Partial<OutboxEntry>,
+  ): Promise<OutboxEntry | undefined> {
+    const cur = await this.get(id);
+    if (!cur || !allowed.includes(cur.status)) return undefined;
+    const next: OutboxEntry = { ...cur, ...patch };
+    const ph = COLS.map((c) => `${c} = ?`).join(',');
+    const inList = allowed.map(() => '?').join(',');
+    // 再带一次 status 条件，避免与并行写之间的 TOCTOU
+    const r = await this.db.query<{ n: number }>(
+      `UPDATE outbox SET ${ph} WHERE id = ? AND status IN (${inList}) RETURNING 1 AS n`,
+      [...toRow(next), id, ...allowed],
+    );
+    if (!r.length) return undefined;
+    return next;
+  }
 }

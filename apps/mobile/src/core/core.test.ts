@@ -14,7 +14,7 @@ import {
 } from './outbox.ts';
 import { MemoryOutboxStore, type OutboxStore } from './outbox-types.ts';
 import { SqliteOutboxStore, type SqlConn } from './outbox-sqlite.ts';
-import { MemorySecureStore, Session } from './session.ts';
+import { MemorySecureStore, Session, RT_KEY } from './session.ts';
 import * as wf from './workflow.ts';
 import { ApiError } from '@wms3d/api-client';
 
@@ -33,7 +33,11 @@ interface Rig {
   blocked: (string | null)[];
 }
 
-function rig(store: OutboxStore = new MemoryOutboxStore(), deviceId = 'dev-test-0001'): Rig {
+function rig(
+  store: OutboxStore = new MemoryOutboxStore(),
+  deviceId = 'dev-test-0001',
+  hooks?: { onBeforeSend?: (e: import('./outbox-types.ts').OutboxEntry) => Promise<void> },
+): Rig {
   const clock = { t: Date.parse('2026-11-12T09:00:00Z') };
   const mock = createMockApi({ now: () => new Date(clock.t) });
   const net: InprocNet = { offline: false, requests: 0 };
@@ -52,7 +56,7 @@ function rig(store: OutboxStore = new MemoryOutboxStore(), deviceId = 'dev-test-
     () => session.api,
     () => clock.t,
     { rejected: (e) => rejected.push(e.lastError!.code), authBlocked: (r) => blocked.push(r) },
-    { autoSchedule: false },
+    { autoSchedule: false, onBeforeSend: hooks?.onBeforeSend },
   );
   const md = new MasterData(new MemoryMasterPersistence(), WH1, 'WH1', ['WH1', 'WH2']);
   return { mock, net, clock, session, outbox, store, md, rejected, blocked };
@@ -529,5 +533,80 @@ describe('SQLite outbox（node:sqlite 跑同一套 SQL）', () => {
     expect(typeof all[0]!.payload).toBe('object');
     expect(await store.purgeFinished(Date.now() + 10 * 24 * 3600_000)).toBe(3);
     expect(await store.list()).toEqual([]);
+  });
+});
+
+describe('CR1 竞态与会话刷新', () => {
+  it('撤销与发送竞态：undo 先于 claim 则条目保持 CANCELLED，不提交（CR1 #3）', async () => {
+    const store = new MemoryOutboxStore();
+    let rRef: Rig | null = null;
+    const r = rig(store, 'dev-test-0001', {
+      onBeforeSend: async (e) => {
+        await rRef!.outbox.undo(e.id);
+      },
+    });
+    rRef = r;
+    await loggedIn(r);
+    const { effects } = scanAll(r, 'PUTAWAY', [
+      'WH1.A01-01-A01',
+      '6900010000004',
+      'WH1.A01-01-A01',
+    ]);
+    const e = await r.outbox.enqueue(
+      toEnqueue(commits(effects)[0]!, {
+        warehouseId: WH1,
+        performedBy: r.session.current!.user.id,
+        performerSessionId: r.session.current!.sessionId,
+        online: true,
+      }),
+    );
+    const sent = await r.outbox.drain();
+    expect(sent).toBe(0);
+    expect((await store.get(e.id))!.status).toBe('CANCELLED');
+    expect(r.mock.store.txns.filter((t) => t.idempotencyKey === e.id)).toHaveLength(0);
+  });
+
+  it('刷新遇 503 / 429 时保留 refresh token（CR1 #4）', async () => {
+    const secure = new MemorySecureStore();
+    const mock = createMockApi();
+    const net: InprocNet = { offline: false, requests: 0 };
+    const inner = createInprocFetch(mock, net);
+    let fail: 'none' | '503' | '429' | '401' = 'none';
+    const session = new Session({
+      baseUrl: '',
+      deviceId: 'dev-cr1-rt',
+      appVersion: '0.1.0',
+      secure,
+      fetch: async (input, init) => {
+        const url = String(typeof input === 'string' ? input : (input as Request).url);
+        if (fail !== 'none' && url.includes('/auth/refresh')) {
+          const status = fail === '503' ? 503 : fail === '429' ? 429 : 401;
+          const code =
+            fail === '401' ? 'UNAUTHENTICATED' : fail === '429' ? 'RATE_LIMITED' : 'INTERNAL';
+          return new Response(
+            JSON.stringify({
+              type: `urn:wms3d:error:${code}`,
+              title: code,
+              status,
+              code,
+            }),
+            { status, headers: { 'content-type': 'application/problem+json' } },
+          );
+        }
+        return inner(input, init);
+      },
+    });
+    await session.login('op1', PW);
+    const rt = await secure.get(RT_KEY);
+    expect(rt).toBeTruthy();
+    fail = '503';
+    await expect(session.refresh()).rejects.toMatchObject({ status: 503 });
+    expect(await secure.get(RT_KEY)).toBe(rt);
+    fail = '429';
+    await expect(session.refresh()).rejects.toMatchObject({ status: 429 });
+    expect(await secure.get(RT_KEY)).toBe(rt);
+    fail = '401';
+    expect(await session.refresh()).toBe(false);
+    expect(await secure.get(RT_KEY)).toBeNull();
   });
 });

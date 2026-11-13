@@ -98,7 +98,7 @@ export class Outbox {
     api: () => ApiClient,
     now: () => number = () => Date.now(),
     events: OutboxEvents = {},
-    opts: { autoSchedule?: boolean } = {},
+    opts: { autoSchedule?: boolean; onBeforeSend?: (e: OutboxEntry) => Promise<void> } = {},
   ) {
     this.store = store;
     this.api = api;
@@ -176,7 +176,11 @@ export class Outbox {
     const e = await this.store.get(id);
     if (!e) throw new Error('单据不存在');
     if (e.status === 'PENDING' || e.status === 'WAITING_STOCK' || e.status === 'BLOCKED_AUTH') {
-      await this.save({ ...e, status: 'CANCELLED' });
+      const cancelled = await this.store.claim(id, ['PENDING', 'WAITING_STOCK', 'BLOCKED_AUTH'], {
+        status: 'CANCELLED',
+      });
+      if (!cancelled) throw new Error(`当前状态 ${e.status} 不能撤销`);
+      this.events.changed?.(cancelled);
       return 'cancelled';
     }
     if (e.status === 'DONE' && e.txnId) {
@@ -193,8 +197,12 @@ export class Outbox {
 
   /** 异常单：作废 */
   async discard(id: string): Promise<void> {
-    const e = await this.store.get(id);
-    if (e && e.status !== 'DONE') await this.save({ ...e, status: 'CANCELLED' });
+    const cancelled = await this.store.claim(
+      id,
+      ['PENDING', 'WAITING_STOCK', 'BLOCKED_AUTH', 'REJECTED'],
+      { status: 'CANCELLED' },
+    );
+    if (cancelled) this.events.changed?.(cancelled);
   }
 
   /** 异常单：重试（新键，04 §5） */
@@ -291,8 +299,9 @@ export class Outbox {
             ? head
             : (await this.store.list(['WAITING_STOCK'])).find((e) => e.nextAttemptAt <= now);
         if (!next) break;
+        if (this.opts.onBeforeSend) await this.opts.onBeforeSend(next);
         const outcome = await this.sendOne(next);
-        sent++;
+        if (outcome !== 'skipped') sent++;
         if (outcome === 'retry') break;
       }
     } finally {
@@ -301,9 +310,13 @@ export class Outbox {
     return sent;
   }
 
-  private async sendOne(e0: OutboxEntry): Promise<Outcome['kind']> {
-    const e: OutboxEntry = { ...e0, status: 'SENDING', attempts: e0.attempts + 1 };
-    await this.save(e);
+  private async sendOne(e0: OutboxEntry): Promise<Outcome['kind'] | 'skipped'> {
+    const e = await this.store.claim(e0.id, ['PENDING', 'WAITING_STOCK'], {
+      status: 'SENDING',
+      attempts: e0.attempts + 1,
+    });
+    if (!e) return 'skipped';
+    this.events.changed?.(e);
     let outcome: Outcome;
     let err: unknown = null;
     try {

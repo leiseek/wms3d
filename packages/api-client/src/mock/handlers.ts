@@ -159,13 +159,15 @@ function applyDeltas(
   s: MockStore,
   w: MWarehouse,
   deltas: Delta[],
-  opts: { force?: boolean; checkCapacity?: boolean },
+  opts: { force?: boolean; checkCapacity?: boolean; rejectInactiveSku?: boolean },
 ): MTxnLine[] {
   // 先整体校验再写入（原子）
   const next = new Map<string, number>();
   for (const d of deltas) {
     if (!d.loc.isActive && d.qty > 0)
       throw new MockError('LOCATION_INACTIVE', `${d.loc.code} 已停用`);
+    if (opts.rejectInactiveSku && d.qty > 0 && !d.sku.isActive)
+      throw new MockError('SKU_INACTIVE', `${d.sku.code} 已停用`);
     const k = balanceKey(d.loc.id, d.sku.id);
     const cur = next.get(k) ?? s.balances.get(k)?.onHand ?? 0;
     const after = cur + d.qty;
@@ -965,7 +967,16 @@ export const handlers: Handlers = {
       message: string;
     }[] = [];
     const seen = new Set<string>();
-    const ok: { code: string; name: string; barcode: string; uom: string; safety: number }[] = [];
+    const ok: {
+      code: string;
+      name: string;
+      barcode: string;
+      uom: string;
+      safety: string;
+      hasUom: boolean;
+      hasSafety: boolean;
+      hasName: boolean;
+    }[] = [];
     rows.forEach((r, i) => {
       const row = i + 2;
       if (r.every((x) => !x.trim())) return;
@@ -1006,12 +1017,16 @@ export const handlers: Handlers = {
           code: 'FORMAT',
           message: '安全库存须为非负整数',
         });
+      const has = (n: string) => header.includes(n);
       ok.push({
         code,
         name,
         barcode,
-        uom: col(r, 'uom') || 'EA',
-        safety: safety ? Number(safety) : 0,
+        uom: col(r, 'uom'),
+        safety,
+        hasUom: has('uom'),
+        hasSafety: has('safety_stock'),
+        hasName: has('name'),
       });
     });
     const codes = [...new Set(ok.map((x) => x.code))];
@@ -1027,12 +1042,12 @@ export const handlers: Handlers = {
             code: x.code,
             name: x.name,
             spec: null,
-            uom: x.uom,
+            uom: x.uom || 'EA',
             lengthMm: null,
             widthMm: null,
             heightMm: null,
             weightG: null,
-            safetyStock: x.safety,
+            safetyStock: x.safety ? Number(x.safety) : 0,
             isActive: true,
             imageUrl: null,
             barcodes: [],
@@ -1041,11 +1056,12 @@ export const handlers: Handlers = {
           };
           s.skus.set(sku.id, sku);
           byCode.set(x.code, sku);
-        } else
-          Object.assign(sku, x.name ? { name: x.name } : {}, {
-            safetyStock: x.safety,
-            updatedAt: at,
-          });
+        } else {
+          if (x.hasName && x.name) sku.name = x.name;
+          if (x.hasUom && x.uom) sku.uom = x.uom;
+          if (x.hasSafety && x.safety !== '') sku.safetyStock = Number(x.safety);
+          sku.updatedAt = at;
+        }
         if (x.barcode && !sku.barcodes.some((b) => b.barcode === x.barcode)) {
           sku.barcodes.push({
             id: s.newId('barcode'),
@@ -1317,6 +1333,7 @@ export const handlers: Handlers = {
     const lines = applyDeltas(s, w, deltas, {
       force: 'force' in b ? b.force : false,
       checkCapacity: b.type === 'INBOUND' || b.type === 'TRANSFER',
+      rejectInactiveSku: b.type === 'INBOUND' || b.type === 'TRANSFER',
     });
     const txn = recordTxn(
       s,

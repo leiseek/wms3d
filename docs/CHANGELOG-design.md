@@ -58,3 +58,13 @@
 - mock：解析 SKU 导入 CSV（预检错误行 / 提交写入）；Fastify mock 支持 multipart；返回显示名。
 - 根脚本 `verify:full`、`ci`、`e2e`、`seed:demo`、`backup:drill`；正式 CLI `apps/api` `admin:create`（ADMIN + 首登改密 + 同事务审计）；已删除 `scripts/create-admin.ts` shim，RUNBOOK 改为调用正式 CLI。
 - 文档：布局**发布仅 ADMIN**（05 补充；ws-b 简报笔误已更正）。`balances.csv` 排到 M4.5。
+
+## contract-v1.3.1 · 2026-11-13（PT）
+CR1 修复轮（0 P0；5 P1 均已修并配回归；部分廉价 P2）：
+- 登出 / 撤销仓库授权立即关闭该会话或仓库的 SSE，不再推送 `stock.changed`。
+- 刷新令牌宽限重用单次：第二个兄弟重用撤销整个 family（`GRACE_SIBLING_REUSED`）。
+- 移动端 outbox：undo 与后台发送 CAS，避免已撤销条目提交；刷新遇 5xx/429 保留 refresh token。
+- SKU CSV 导入缺列/空单元格不覆盖已有字段。
+- 事务内复核仓位编码（`LAYOUT_STALE`）；INBOUND/TRANSFER 拒绝停用 SKU（`SKU_INACTIVE`）；ZPL `^FD` 转义 `^~_`。
+- 联合验收 #5 增加钩子强制的互斥交错；backup-drill 在未设 `DATABASE_URL` 时默认 `wms_lead`；restore 只删除自己新建的库。
+- `CONTRACT_VERSION` 1.3.1。
