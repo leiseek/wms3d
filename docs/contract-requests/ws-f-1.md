@@ -25,3 +25,10 @@
 
 ## 4. 备份状态键（已对齐，无需改动）——仅确认
 - `scripts/backup.sh` 写 `ops_status['backup'] = {lastLocalAt, lastRemoteAt, remoteConfigured, lastFile, lastRemoteOk}`；与 ws-a2 看板读取的字段一致（多出的两个字段被忽略）。
+
+---
+**Lead 决定（2026-11-13 PT，contract-v1.3）**
+1. **接受，已做**：根 `package.json` 新增 `verify:full`、`ci`、`e2e`、`seed:demo`、`backup:drill`（指向你的脚本）。可选项“把 `tsc -p e2e` / `tsc -p scripts` 并入 `pnpm typecheck`”：**暂不并入**，保持 `pnpm verify` 快；由 `pnpm run ci` / `pnpm verify:full` 覆盖，合并前 WS 跑 `pnpm run ci`（注意：`pnpm ci` 是 pnpm 内置命令，必须写 `run`）。
+2. **接受，已做**：正式 CLI `apps/api/src/db/create-admin.ts`，命令 `pnpm --filter @wms3d/api admin:create -- --username <name> [--display-name …]`，临时密码从 `WMS_ADMIN_TEMP_PASSWORD` 读取（≥ 12 字符），建 ADMIN（all_warehouses、must_change_password），与 `audit_logs`（`user.create`）同一事务写入，复用 auth 模块的 argon2id 参数；已存在同名用户时退出码 1，不修改；有测试。**WS-F**：删除 `scripts/create-admin.ts` shim，`install.sh` / RUNBOOK 改为调用正式 CLI。
+3. mock multipart：**已做**（随 WS-B-1）。e2e 可以改回用 `POST /skus/import`。
+4. 备份状态键：确认一致，无改动。

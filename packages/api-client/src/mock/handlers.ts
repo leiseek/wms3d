@@ -98,9 +98,15 @@ function locationView(l: MLocation) {
 function skuView(s: MSku) {
   return { ...s, barcodes: s.barcodes.map(({ updatedAt: _u, ...b }) => b) };
 }
-function txnView(t: MTxn) {
+const userName = (s: MockStore, id: string | null) =>
+  id ? (s.users.get(id)?.displayName ?? null) : null;
+function txnView(s: MockStore, t: MTxn) {
   const { requestHash: _h, ...rest } = t;
-  return rest;
+  return {
+    ...rest,
+    performedByName: userName(s, t.performedBy),
+    submittedByName: userName(s, t.submittedBy),
+  };
 }
 function need<T>(v: T | undefined | null, what = '资源'): T {
   if (v === undefined || v === null) throw new MockError('NOT_FOUND', `${what}不存在`);
@@ -352,6 +358,39 @@ const LABEL_TEMPLATES = [
 /** 极简合法 PDF（标签/校准页 mock 返回；真实渲染见 packages/labels） */
 const MOCK_PDF =
   '%PDF-1.4\n1 0 obj<</Type/Catalog/Pages 2 0 R>>endobj\n2 0 obj<</Type/Pages/Kids[3 0 R]/Count 1>>endobj\n3 0 obj<</Type/Page/Parent 2 0 R/MediaBox[0 0 283 142]>>endobj\ntrailer<</Root 1 0 R>>\n%%EOF\n';
+
+/** 极简 RFC 4180 解析（引号、转义引号、CRLF）。 */
+function parseCsv(text: string): string[][] {
+  const out: string[][] = [];
+  let row: string[] = [];
+  let cell = '';
+  let q = false;
+  for (let i = 0; i < text.length; i++) {
+    const ch = text[i]!;
+    if (q) {
+      if (ch === '"' && text[i + 1] === '"') {
+        cell += '"';
+        i++;
+      } else if (ch === '"') q = false;
+      else cell += ch;
+    } else if (ch === '"') q = true;
+    else if (ch === ',') {
+      row.push(cell);
+      cell = '';
+    } else if (ch === '\n' || ch === '\r') {
+      if (ch === '\r' && text[i + 1] === '\n') i++;
+      row.push(cell);
+      out.push(row);
+      row = [];
+      cell = '';
+    } else cell += ch;
+  }
+  if (cell || row.length) {
+    row.push(cell);
+    out.push(row);
+  }
+  return out;
+}
 
 function csvCell(v: unknown): string {
   let s = v === null || v === undefined ? '' : String(v);
@@ -898,14 +937,136 @@ export const handlers: Handlers = {
     sku.updatedAt = s.iso();
     return skuView(sku);
   },
-  importSkus: (c) => ({
-    dryRun: c.query.dryRun === 'true',
-    totalRows: 0,
-    created: 0,
-    updated: 0,
-    committedBatches: 0,
-    errors: [],
-  }),
+  importSkus: async (c) => {
+    // v1.3（WS-B-1）：multipart 字段 `file`（UTF-8 CSV）；按 code 统计新增/更新，条码冲突与重复行报错；dryRun=false 时写入
+    const form = c.body as unknown;
+    const file =
+      form && typeof (form as FormData).get === 'function' ? (form as FormData).get('file') : null;
+    if (!file || typeof file === 'string')
+      throw new MockError('VALIDATION_FAILED', '缺少上传文件（multipart 字段 file）', {
+        errors: [{ path: 'file', message: '缺少上传文件' }],
+      });
+    const rows = parseCsv((await (file as Blob).text()).replace(/^\uFEFF/, ''));
+    const header = (rows.shift() ?? []).map((h) => h.trim());
+    const col = (r: string[], name: string) => {
+      const i = header.indexOf(name);
+      return i < 0 ? '' : (r[i] ?? '').trim();
+    };
+    const s = c.store;
+    const byCode = new Map([...s.skus.values()].map((k) => [k.code, k]));
+    const barcodeOwner = new Map<string, string>();
+    for (const k of s.skus.values())
+      for (const b of k.barcodes) barcodeOwner.set(b.barcode, k.code);
+    const dryRun = c.query.dryRun === 'true';
+    const errors: {
+      row: number;
+      column: string | null;
+      code: 'DUPLICATE' | 'BARCODE_CONFLICT' | 'FORMAT' | 'REQUIRED';
+      message: string;
+    }[] = [];
+    const seen = new Set<string>();
+    const ok: { code: string; name: string; barcode: string; uom: string; safety: number }[] = [];
+    rows.forEach((r, i) => {
+      const row = i + 2;
+      if (r.every((x) => !x.trim())) return;
+      const code = col(r, 'code');
+      const name = col(r, 'name');
+      const barcode = col(r, 'barcode');
+      if (!code)
+        return void errors.push({ row, column: 'code', code: 'REQUIRED', message: '缺少 code' });
+      if (!name && !byCode.has(code))
+        return void errors.push({
+          row,
+          column: 'name',
+          code: 'REQUIRED',
+          message: '新 SKU 缺少 name',
+        });
+      const key = `${code}|${barcode}`;
+      if (seen.has(key))
+        return void errors.push({
+          row,
+          column: 'code',
+          code: 'DUPLICATE',
+          message: `重复行 ${code}`,
+        });
+      seen.add(key);
+      const owner = barcode ? barcodeOwner.get(barcode) : undefined;
+      if (owner && owner !== code)
+        return void errors.push({
+          row,
+          column: 'barcode',
+          code: 'BARCODE_CONFLICT',
+          message: `条码已属于 ${owner}`,
+        });
+      const safety = col(r, 'safety_stock');
+      if (safety && !/^\d+$/.test(safety))
+        return void errors.push({
+          row,
+          column: 'safety_stock',
+          code: 'FORMAT',
+          message: '安全库存须为非负整数',
+        });
+      ok.push({
+        code,
+        name,
+        barcode,
+        uom: col(r, 'uom') || 'EA',
+        safety: safety ? Number(safety) : 0,
+      });
+    });
+    const codes = [...new Set(ok.map((x) => x.code))];
+    const created = codes.filter((x) => !byCode.has(x)).length;
+    const updated = codes.length - created;
+    if (!dryRun && errors.length === 0) {
+      const at = s.iso();
+      for (const x of ok) {
+        let sku = byCode.get(x.code);
+        if (!sku) {
+          sku = {
+            id: s.newId('sku'),
+            code: x.code,
+            name: x.name,
+            spec: null,
+            uom: x.uom,
+            lengthMm: null,
+            widthMm: null,
+            heightMm: null,
+            weightG: null,
+            safetyStock: x.safety,
+            isActive: true,
+            imageUrl: null,
+            barcodes: [],
+            createdAt: at,
+            updatedAt: at,
+          };
+          s.skus.set(sku.id, sku);
+          byCode.set(x.code, sku);
+        } else
+          Object.assign(sku, x.name ? { name: x.name } : {}, {
+            safetyStock: x.safety,
+            updatedAt: at,
+          });
+        if (x.barcode && !sku.barcodes.some((b) => b.barcode === x.barcode)) {
+          sku.barcodes.push({
+            id: s.newId('barcode'),
+            barcode: x.barcode,
+            packQty: 1,
+            isPrimary: sku.barcodes.length === 0,
+            updatedAt: at,
+          });
+          barcodeOwner.set(x.barcode, x.code);
+        }
+      }
+    }
+    return {
+      dryRun,
+      totalRows: rows.filter((r) => r.some((x) => x.trim())).length,
+      created,
+      updated,
+      committedBatches: !dryRun && errors.length === 0 ? Math.ceil(ok.length / 1000) : 0,
+      errors,
+    };
+  },
   exportSkus: (c) => {
     const rows = [
       [
@@ -1105,7 +1266,11 @@ export const handlers: Handlers = {
         200,
         {
           kind: 'json',
-          value: { txn: txnView(prev), balancesAfter: balancesAfter(prev.lines), replayed: true },
+          value: {
+            txn: txnView(c.store, prev),
+            balancesAfter: balancesAfter(prev.lines),
+            replayed: true,
+          },
         },
         { 'content-type': 'application/json' },
       );
@@ -1177,7 +1342,7 @@ export const handlers: Handlers = {
       201,
       {
         kind: 'json',
-        value: { txn: txnView(txn), balancesAfter: balancesAfter(lines), replayed: false },
+        value: { txn: txnView(c.store, txn), balancesAfter: balancesAfter(lines), replayed: false },
       },
       { 'content-type': 'application/json' },
     );
@@ -1232,7 +1397,7 @@ export const handlers: Handlers = {
       201,
       {
         kind: 'json',
-        value: { txn: txnView(txn), balancesAfter: balancesAfter(lines), replayed: false },
+        value: { txn: txnView(c.store, txn), balancesAfter: balancesAfter(lines), replayed: false },
       },
       { 'content-type': 'application/json' },
     );
@@ -1248,11 +1413,12 @@ export const handlers: Handlers = {
       .filter((t) => !q.to || t.createdAt < q.to)
       .slice()
       .reverse()
-      .map(txnView);
+      .map((t) => txnView(c.store, t));
     return paginate(items, q.limit, q.cursor);
   },
   getTransaction: (c) =>
     txnView(
+      c.store,
       need(
         c.store.txns.find((t) => t.id === c.params.id),
         '交易',
@@ -1292,7 +1458,8 @@ export const handlers: Handlers = {
       .filter((m) => !q.from || m.createdAt >= q.from)
       .filter((m) => !q.to || m.createdAt < q.to)
       .slice()
-      .reverse();
+      .reverse()
+      .map((m) => ({ ...m, performedByName: userName(c.store, m.performedBy) }));
     return paginate(items, q.limit, q.cursor);
   },
   exportMovements: (c) => {
@@ -1742,7 +1909,8 @@ export const handlers: Handlers = {
       .filter((a) => !q.userId || a.userId === q.userId)
       .filter((a) => !q.action || a.action === q.action)
       .slice()
-      .reverse();
+      .reverse()
+      .map((a) => ({ ...a, userName: userName(c.store, a.userId) }));
     return paginate(items, q.limit, q.cursor);
   },
   events: (c) =>

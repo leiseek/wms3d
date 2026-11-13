@@ -64,5 +64,8 @@ pnpm check:ownership                        # 改动只能落在下方“独占�
 - OPERATOR 冲正违规：403 `FORBIDDEN`。真实后端 A1/A2/E 已合并；`pnpm db:reset:dev` 会带演示库存。
 
 ## Lead 更新 · ws-d1 合并（2026-11-12 PT）
-- **`LayoutDesignerPage` 已在 main**（ws-d1 a6153a4，合并提交 a716595）：`import { LayoutDesignerPage } from './features/layout-designer'`（`apps/admin/src/features/layout-designer/index.tsx`），props `{ api, warehouseId, canPublish?, canEdit?, height? }`。挂到路由 `/layout`，按 `me.role` 传 `canEdit` / `canPublish`（MANAGER/ADMIN 可发布），`api` 传你的 api-client 实例。
+- **`LayoutDesignerPage` 已在 main**（ws-d1 a6153a4，合并提交 a716595）：`import { LayoutDesignerPage } from './features/layout-designer'`（`apps/admin/src/features/layout-designer/index.tsx`），props `{ api, warehouseId, canPublish?, canEdit?, height? }`。挂到路由 `/layout`，按 `me.role` 传 `canEdit`（ADMIN/MANAGER 可编辑草稿）/ `canPublish`（**仅 ADMIN** 可发布，见契约 `publishLayout.roles` 与 08 §1；此处 v1.3 更正，原写“MANAGER/ADMIN 可发布”有误），`api` 传你的 api-client 实例。
 - twin3d 的 troika 类型现在随包导出：挂 `TwinView` 时不需要在 admin 里加 reference 或 include。
+
+## Lead 更新 · contract-v1.3（2026-11-13 PT）
+已合并到 main（862f7ab）。v1.3：mock 的 SKU 导入会解析 CSV 并返回错误行（字段 `file`），服务端预检路径现在可以对 mock 做 E2E；`performedByName/submittedByName/userName` 可选字段已加（mock 有值，真实 API 待 A2 填充，缺省时回退到 id）；`balances.csv` 排到 M4.5。**发布按钮仅 ADMIN**（上面 LayoutDesignerPage 一节已更正）。

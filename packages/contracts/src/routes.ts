@@ -682,7 +682,8 @@ export const routes = {
     id: 'importSkus',
     method: 'POST',
     path: '/skus/import',
-    summary: 'CSV 导入（dryRun 预检；commit 每 1000 行一个事务）',
+    summary:
+      'CSV 导入（dryRun 预检；commit 每 1000 行一个事务）。multipart 单文件字段 `file`（UTF-8 CSV，可带 BOM，≤ 5 万行；列同 export.csv）',
     tag: 'skus',
     roles: MGR,
     policy: 'skuWrite',

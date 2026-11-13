@@ -76,3 +76,7 @@ pnpm check:ownership                        # 改动只能落在下方“独占�
 
 ## Lead 更新 · ws-d1 合并（2026-11-12 PT）
 - 跟进：`events.test.ts` 固定用端口 4831。main 上的 verify 跑到它时，和本 WS 同时运行的测试撞端口（EADDRINUSE），出现过一次假失败。请改为 `listen({ port: 0 })` 并读取实际端口。
+
+## Lead 更新 · contract-v1.3（2026-11-13 PT）
+- **新任务（WS-B-2）**：交易单 / 台账查询返回 `performedByName`（以及 Txn 的 `submittedByName`），审计查询返回 `userName`（JOIN `users.display_name`）。都是可选字段，向后兼容。
+- **M4.5（WS-B-3）**：`GET /inventory/balances.csv`（query 同 BalancesQuery 去掉分页，roles MGR，text/csv），实现时向 Lead 提契约补丁。

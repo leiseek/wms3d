@@ -1,7 +1,7 @@
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import type { z } from 'zod';
 import { setupServer } from 'msw/node';
-import { Problem, routeList, routes, type RouteSpec } from '@wms3d/contracts';
+import { ImportResult, Problem, routeList, routes, type RouteSpec } from '@wms3d/contracts';
 import { demo } from '@wms3d/domain';
 import { createApiClient, newIdempotencyKey, ApiError, type ApiClient } from '../index.ts';
 import { createMockApi, createMswHandlers, type MockApi } from './index.ts';
@@ -222,7 +222,13 @@ describe('mock 场景 × 契约校验（所有 JSON 响应用 contracts schema �
       }),
     ).rejects.toMatchObject({ code: 'BARCODE_CONFLICT' });
     const fd = new FormData();
-    await admin.r.importSkus({ query: { dryRun: 'true' }, body: fd });
+    await expect(admin.r.importSkus({ query: { dryRun: 'true' }, body: fd })).rejects.toMatchObject(
+      {
+        status: 400,
+      },
+    );
+    fd.set('file', new Blob(['code,name\nIMP-1,导入品\n'], { type: 'text/csv' }), 'a.csv');
+    expect((await admin.r.importSkus({ query: { dryRun: 'true' }, body: fd })).created).toBe(1);
     const csv = await admin.r.exportSkus({});
     expect(await csv.text()).toMatch(/^\uFEFF?code,name/);
     const loc = demo.demoLocations.find((l) => l.rackKey)!;
@@ -497,6 +503,53 @@ describe('MSW handlers + 类型化客户端（单飞刷新）', () => {
 });
 
 describe('mock server（Fastify）', () => {
+  it('Fastify mock：SKU CSV 导入（multipart 字段 file；预检错误行 + 提交写入，WS-B-1）', async () => {
+    const { app } = buildMockServer();
+    const url = await app.listen({ port: 0, host: '127.0.0.1' });
+    try {
+      const login = await fetch(`${url}/api/v1/auth/login`, {
+        method: 'POST',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({
+          username: 'admin',
+          password: demo.DEMO_PASSWORD,
+          deviceId: 'dev-srv-0002',
+          client: 'mobile',
+        }),
+      });
+      const { accessToken } = (await login.json()) as { accessToken: string };
+      const auth = { authorization: `Bearer ${accessToken}` };
+      const taken = demo.demoSkus[0]!;
+      const takenBarcode = taken.barcodes[0]!.barcode;
+      const upload = async (csv: string, dryRun: boolean) => {
+        const fd = new FormData();
+        fd.set('file', new Blob([csv], { type: 'text/csv' }), 'skus.csv');
+        const r = await fetch(`${url}/api/v1/skus/import?dryRun=${dryRun}`, {
+          method: 'POST',
+          headers: auth,
+          body: fd,
+        });
+        expect(r.status).toBe(200);
+        return ImportResult.parse(await r.json());
+      };
+      const bad = await upload(
+        `code,name,barcode\nNEW-001,新品,6900000000017\nNEW-002,冲突,${takenBarcode}\n,缺编码,\n`,
+        true,
+      );
+      expect(bad.errors.map((e) => e.code).sort()).toEqual(['BARCODE_CONFLICT', 'REQUIRED']);
+      expect(bad.created).toBe(1);
+      const ok = await upload(
+        `code,name,barcode\nNEW-001,新品,6900000000017\n${taken.code},,\n`,
+        false,
+      );
+      expect(ok).toMatchObject({ dryRun: false, created: 1, updated: 1, errors: [] });
+      const list = await fetch(`${url}/api/v1/skus?q=NEW-001`, { headers: auth });
+      expect(JSON.stringify(await list.json())).toContain('NEW-001');
+    } finally {
+      await app.close();
+    }
+  });
+
   it('登录 → me → SSE 推送 stock.changed', async () => {
     const { app } = buildMockServer();
     const url = await app.listen({ port: 0, host: '127.0.0.1' });

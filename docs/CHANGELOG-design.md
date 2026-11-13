@@ -52,3 +52,9 @@
 - 登录锁定 MVP 用进程内实现（03 §2 已注明），落库版本排到 v1.1。
 - 联合验收 #5（布局发布停用 × 入库并发）：`apps/api/src/test/joint-5.test.ts`，在 main 上通过。
 - `CONTRACT_VERSION` 1.2.0。
+
+## contract-v1.3 · 2026-11-13（PT）
+- 批处理 ws-b-1（含 B-2、B-3）与 ws-f-1。新增（向后兼容）：`Txn.performedByName/submittedByName`、`Movement.performedByName`、`AuditLog.userName`（可选）；`importSkus` 写明 multipart 字段 `file`。`CONTRACT_VERSION` 1.3.0。
+- mock：解析 SKU 导入 CSV（预检错误行 / 提交写入）；Fastify mock 支持 multipart；返回显示名。
+- 根脚本 `verify:full`、`ci`、`e2e`、`seed:demo`、`backup:drill`；正式 CLI `apps/api` `admin:create`（ADMIN + 首登改密 + 同事务审计）。
+- 文档：布局**发布仅 ADMIN**（05 补充；ws-b 简报笔误已更正）。`balances.csv` 排到 M4.5。
