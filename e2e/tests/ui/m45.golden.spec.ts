@@ -47,17 +47,15 @@ test('黄金路径：设计→发布→打印核对→上架→3D→定位→出
   await loginAdmin(adminPage);
 
   await adminPage.goto(`http://127.0.0.1:${ports.admin}/layout`);
-  if (
-    await adminPage
-      .getByTestId('no-draft')
-      .isVisible()
-      .catch(() => false)
-  ) {
+  const noDraft = adminPage.getByTestId('no-draft');
+  const designer = adminPage.getByTestId('layout-designer');
+  await expect(noDraft.or(designer)).toBeVisible({ timeout: 30_000 });
+  if (await noDraft.isVisible()) {
     const fromCurrent = adminPage.getByTestId('create-draft');
     if (await fromCurrent.isVisible()) await fromCurrent.click();
     else await adminPage.getByTestId('create-blank-draft').click();
   }
-  await expect(adminPage.getByTestId('layout-designer')).toBeVisible({ timeout: 30_000 });
+  await expect(designer).toBeVisible({ timeout: 30_000 });
   const toggle = adminPage.getByTestId('toggle-3d');
   if (!(await toggle.isChecked().catch(() => false))) await toggle.click();
   await expect(adminPage.getByTestId('twin-preview')).toBeVisible({ timeout: 30_000 });

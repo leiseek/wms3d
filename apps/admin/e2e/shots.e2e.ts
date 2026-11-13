@@ -110,12 +110,14 @@ test('M4.5 截图：设计器 3D 预览、标签核对、孪生图例（桌面�
 
   await page.goto('/layout');
   const noDraft = page.getByTestId('no-draft');
-  if (await noDraft.isVisible().catch(() => false)) {
+  const designer = page.getByTestId('layout-designer');
+  await expect(noDraft.or(designer)).toBeVisible({ timeout: 30_000 });
+  if (await noDraft.isVisible()) {
     const fromCurrent = page.getByTestId('create-draft');
     if (await fromCurrent.isVisible()) await fromCurrent.click();
     else await page.getByTestId('create-blank-draft').click();
   }
-  await expect(page.getByTestId('layout-designer')).toBeVisible({ timeout: 30_000 });
+  await expect(designer).toBeVisible({ timeout: 30_000 });
   await page.getByTestId('toggle-3d').click();
   await expect(page.getByTestId('twin-preview')).toBeVisible({ timeout: 30_000 });
   await page.waitForTimeout(4000);
