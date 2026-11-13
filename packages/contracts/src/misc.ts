@@ -40,6 +40,7 @@ export const AuditLog = z
     id: z.number().int(),
     at: Timestamp,
     userId: Id.nullable(),
+    userName: z.string().nullable().optional().describe('v1.3（WS-B-2）：显示名，可选'),
     warehouseId: Id.nullable(),
     action: z.string(),
     entity: z.string(),

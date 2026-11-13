@@ -58,3 +58,6 @@ pnpm check:ownership                        # 改动只能落在下方“独占�
 
 ## Lead 更新 · ws-d1 合并（2026-11-12 PT）
 已合并到 main（a716595）。ws-d1-1 已处理：golden 夹具改为矩形 → 请把 `RACK_OUTSIDE_ZONE_SEVERITY` 改为 `'ERROR'`；twin3d 已导出 troika 声明 → 删除 `TwinPreview.tsx` 里的 reference。仍待做：ws-a1-5 的 `CODE_DUPLICATE` 三类检查（见上一节）。
+
+## Lead 更新 · contract-v1.3（2026-11-13 PT）
+权限更正：`canPublish` 仅 ADMIN（契约与 08 §1），MANAGER 只能编辑草稿和校验。

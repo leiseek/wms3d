@@ -24,9 +24,18 @@ export function buildMockServer(opts: MockServerOptions = {}): {
     credentials: true,
     exposedHeaders: ['ETag', 'Content-Disposition'],
   });
-  app.addContentTypeParser('multipart/form-data', (_req, payload, done) => {
-    payload.resume();
-    payload.on('end', () => done(null, undefined));
+  app.addContentTypeParser('multipart/form-data', (req, payload, done) => {
+    // 与 MSW 一致：把 multipart 解析成 FormData 交给 handler（WS-B-1）
+    const chunks: Buffer[] = [];
+    payload.on('data', (c: Buffer) => chunks.push(c));
+    payload.on('end', () => {
+      new Response(Buffer.concat(chunks), {
+        headers: { 'content-type': String(req.headers['content-type']) },
+      })
+        .formData()
+        .then((f) => done(null, f))
+        .catch(() => done(null, undefined));
+    });
   });
   app.all('/api/v1/*', async (req, reply) => {
     const headers: Record<string, string> = {};

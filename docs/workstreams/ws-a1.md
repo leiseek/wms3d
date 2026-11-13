@@ -79,3 +79,7 @@ pnpm check:ownership                        # 改动只能落在下方“独占�
 - **a1-5**：由 WS-D1 在 domain `validateLayout` 实现（CODE_DUPLICATE）；**D1 合并前保留** `plan.ts#extraIssues`，合并后删除。
 - **新任务（来自 ws-a2-1 #2）**：在 `lib/auth.ts` 的 `AuthContext` 加 `exp?: number`（JWT exp，秒），由 verifier 填充，供 SSE 关流使用。
 - 联合验收 **#5** 已在 main 通过：`apps/api/src/test/joint-5.test.ts`（Lead 维护）。
+
+## Lead 更新 · contract-v1.3（2026-11-13 PT）
+- 正式 `create-admin` CLI 放在 `apps/api/src/db/create-admin.ts`（Lead，复用 `auth/service.ts` 的 `hashPassword`）。修改 argon2 参数时，这里会自动跟随。
+- `importSkus` 的 multipart 字段 `file` 已写进契约，与你的实现一致，无需改动。

@@ -2,7 +2,7 @@
   "openapi": "3.1.0",
   "info": {
     "title": "wms3d API",
-    "version": "1.2.0",
+    "version": "1.3.0",
     "description": "contract-v1（冻结）。源：packages/contracts（Zod 4）。"
   },
   "servers": [
@@ -2754,7 +2754,7 @@
     "/api/v1/skus/import": {
       "post": {
         "operationId": "importSkus",
-        "summary": "CSV 导入（dryRun 预检；commit 每 1000 行一个事务）",
+        "summary": "CSV 导入（dryRun 预检；commit 每 1000 行一个事务）。multipart 单文件字段 `file`（UTF-8 CSV，可带 BOM，≤ 5 万行；列同 export.csv）",
         "tags": [
           "skus"
         ],
@@ -5374,6 +5374,13 @@
               }
             ]
           },
+          "userName": {
+            "description": "v1.3（WS-B-2）：显示名，可选",
+            "type": [
+              "string",
+              "null"
+            ]
+          },
           "warehouseId": {
             "anyOf": [
               {
@@ -7930,6 +7937,13 @@
           "performedBy": {
             "$ref": "#/components/schemas/Id"
           },
+          "performedByName": {
+            "description": "v1.3（WS-B-2）：显示名，可选",
+            "type": [
+              "string",
+              "null"
+            ]
+          },
           "createdAt": {
             "$ref": "#/components/schemas/Timestamp"
           }
@@ -9574,6 +9588,20 @@
           },
           "submittedBy": {
             "$ref": "#/components/schemas/Id"
+          },
+          "performedByName": {
+            "description": "v1.3（WS-B-2）：显示名，可选",
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "submittedByName": {
+            "description": "v1.3（WS-B-2）：显示名，可选",
+            "type": [
+              "string",
+              "null"
+            ]
           },
           "deviceId": {
             "type": [

@@ -56,3 +56,6 @@ pnpm check:ownership                        # 改动只能落在下方“独占�
 - **备份状态写入（来自 ws-a2-1 #6）**：备份脚本完成后写入 `ops_status`，键 `'backup'`，值 `{ lastLocalAt?: ISO, lastRemoteAt?: ISO, remoteConfigured?: boolean }`；看板会读取它。
 - `pnpm db:reset:dev` 现在会写演示库存（`WMS_SEED_STOCK=0` 跳过）。移动端 e2e：`pnpm --filter @wms3d/mobile e2e`；twin3d e2e/基准见 `packages/twin3d/README`。纳入 `scripts/ci-local.sh` 的 e2e 阶段。
 - 联合验收 #5 已有：`apps/api/src/test/joint-5.test.ts`。
+
+## Lead 更新 · contract-v1.3（2026-11-13 PT）
+已合并到 main（ee54948）。ws-f-1 已处理：根脚本 `pnpm verify:full`、`pnpm run ci`（`pnpm ci` 是 pnpm 内置命令，必须加 run）、`pnpm e2e`、`pnpm seed:demo`、`pnpm backup:drill` 可用；正式 CLI `pnpm --filter @wms3d/api admin:create`（写审计）已在 main，**请删除 `scripts/create-admin.ts` shim** 并更新 install.sh / RUNBOOK；mock 已支持 multipart 导入，e2e 可以改回用 `/skus/import`。

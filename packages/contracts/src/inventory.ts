@@ -103,6 +103,8 @@ export const Txn = z
     reversedByTxnId: Id.nullable(),
     performedBy: Id,
     submittedBy: Id,
+    performedByName: z.string().nullable().optional().describe('v1.3（WS-B-2）：显示名，可选'),
+    submittedByName: z.string().nullable().optional().describe('v1.3（WS-B-2）：显示名，可选'),
     deviceId: z.string().nullable(),
     createdOffline: z.boolean(),
     clientCreatedAt: Timestamp.nullable(),
@@ -177,6 +179,7 @@ export const Movement = z
     qtyDelta: z.number().int(),
     balanceAfter: z.number().int(),
     performedBy: Id,
+    performedByName: z.string().nullable().optional().describe('v1.3（WS-B-2）：显示名，可选'),
     createdAt: Timestamp,
   })
   .meta({ id: 'Movement' });
