@@ -427,7 +427,7 @@ export async function submitCount(
       ...bal.rows.filter((b) => b.on_hand > 0).map((b) => b.sku_id),
     ]);
     const rv = await c.query<{ late: boolean }>(
-      `SELECT (now() - $1::timestamptz) > interval '${NEEDS_REVIEW_AFTER}' AS late`,
+      `SELECT abs(extract(epoch from (now() - $1::timestamptz))) > extract(epoch from interval '${NEEDS_REVIEW_AFTER}') AS late`,
       [body.clientCountedAt],
     );
     const needsReview = rv.rows[0]!.late;

@@ -105,9 +105,11 @@ export async function resolveCommand(
   q: Queryable,
   wh: { id: string; code: string },
   cmd: TxnCommand,
-): Promise<ResolvedCommand> {
-  if (cmd.type === 'TRANSFER') return { type: 'TRANSFER', lines: cmd.lines };
-  if (cmd.type === 'ADJUST') return { type: 'ADJUST', lines: cmd.lines };
+): Promise<{ resolved: ResolvedCommand; locationCodes: Map<string, string> }> {
+  if (cmd.type === 'TRANSFER')
+    return { resolved: { type: 'TRANSFER', lines: cmd.lines }, locationCodes: new Map() };
+  if (cmd.type === 'ADJUST')
+    return { resolved: { type: 'ADJUST', lines: cmd.lines }, locationCodes: new Map() };
   const codes = cmd.lines.flatMap((l, i) =>
     l.locationCode ? [{ path: `lines[${i}].locationCode`, value: l.locationCode }] : [],
   );
@@ -118,19 +120,24 @@ export async function resolveCommand(
     ? await resolveLocationCodes(q, wh, codes)
     : new Map<string, string>();
   const barMap = bars.length ? await resolveSkuBarcodes(q, bars) : new Map();
-  return {
-    type: cmd.type,
-    lines: cmd.lines.map((l) => {
-      const b = l.skuBarcode ? barMap.get(l.skuBarcode)! : null;
-      const qty = l.qty * (b?.packQty ?? 1);
-      if (qty > 2_000_000_000) throw new ApiError('VALIDATION_FAILED', '数量过大');
-      return {
-        locationId: l.locationId ?? locMap.get(l.locationCode!)!,
-        skuId: b ? b.skuId : l.skuId!,
-        qty,
-      };
-    }),
-  };
+  const lines = cmd.lines.map((l) => {
+    const b = l.skuBarcode ? barMap.get(l.skuBarcode)! : null;
+    const qty = l.qty * (b?.packQty ?? 1);
+    if (qty > 2_000_000_000) throw new ApiError('VALIDATION_FAILED', '数量过大');
+    return {
+      locationId: l.locationId ?? locMap.get(l.locationCode!)!,
+      skuId: b ? b.skuId : l.skuId!,
+      qty,
+    };
+  });
+  const locationCodes = new Map<string, string>();
+  for (const { value } of codes) {
+    const id = locMap.get(value)!;
+    const up = value.trim().toUpperCase();
+    const sp = splitPayload(up);
+    locationCodes.set(id, sp ? sp.code : up);
+  }
+  return { resolved: { type: cmd.type, lines }, locationCodes };
 }
 
 /**
@@ -191,7 +198,7 @@ export async function postTransaction(
     cmd.performedBy,
     cmd.performerSessionId,
   );
-  const resolved = await resolveCommand(pool, wh.rows[0], cmd);
+  const { resolved, locationCodes } = await resolveCommand(pool, wh.rows[0], cmd);
   const p = plan(resolved);
   const handoff = performerSessionId !== null;
   const auditAction =
@@ -220,6 +227,7 @@ export async function postTransaction(
     enforceCapacity: cmd.type === 'INBOUND' || cmd.type === 'TRANSFER',
     force,
     audit: auditAction ? { action: auditAction, ip: meta.ip, traceId: meta.traceId } : null,
+    expectedLocationCodes: locationCodes,
   };
   return postTxn(pool, bus, input);
 }

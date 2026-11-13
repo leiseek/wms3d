@@ -110,10 +110,8 @@ export const authModule: ApiModule = ({ routes: r, services }) => {
         `SELECT id FROM device_sessions WHERE device_id = $1 AND ended_at IS NULL`,
         [body.deviceId],
       );
-      await endSessions(
-        c,
-        prev.rows.map((x) => x.id),
-      );
+      const endedSessionIds = prev.rows.map((x) => x.id);
+      await endSessions(c, endedSessionIds);
       const sess = await c.query<{ id: string; started_at: Date }>(
         `INSERT INTO device_sessions (device_id, user_id) VALUES ($1,$2) RETURNING id, started_at`,
         [body.deviceId, u.id],
@@ -137,9 +135,11 @@ export const authModule: ApiModule = ({ routes: r, services }) => {
       });
       const accessToken = await accessFor(c, services.jwt, u, body.deviceId, session.id);
       const me = (await loadMe(c, u.id))!;
-      return { session, rt, accessToken, me };
+      return { session, rt, accessToken, me, endedSessionIds };
     });
     if (!out) throw new ApiError('DEVICE_DISABLED');
+    if (out.endedSessionIds.length)
+      services.bus.invalidateAuth({ sessionIds: out.endedSessionIds });
     limiter.succeed(body.username);
     if (body.client === 'web') setRefreshCookie(reply, out.rt.token);
     return {
@@ -232,6 +232,16 @@ export const authModule: ApiModule = ({ routes: r, services }) => {
           await audit('auth.refresh.reuse', { reason: 'REPLAYED_AFTER_GRACE' });
           return { kind: 'deny', code: 'UNAUTHENTICATED', detail: '刷新令牌已被使用，已撤销' };
         }
+        // 每个父 token 只签发 1 个兄弟（03 §2 B-N13 / CR1 #2）；第二次宽限期重用视为窃取并撤销 family
+        const sib = await c.query(
+          `SELECT 1 FROM refresh_tokens WHERE sibling_of = $1 AND revoked_at IS NULL LIMIT 1`,
+          [old.replaced_by],
+        );
+        if (sib.rowCount) {
+          await revokeFamily(c, old.family_id);
+          await audit('auth.refresh.reuse', { reason: 'GRACE_SIBLING_REUSED' });
+          return { kind: 'deny', code: 'UNAUTHENTICATED', detail: '刷新令牌已被使用，已撤销' };
+        }
         siblingOf = old.replaced_by;
       }
       const next = await insertRefresh(c, {
@@ -289,6 +299,7 @@ export const authModule: ApiModule = ({ routes: r, services }) => {
         after: { sessionId: auth.sessionId },
       });
     });
+    services.bus.invalidateAuth({ sessionIds: [auth.sessionId] });
     reply.clearCookie(REFRESH_COOKIE, { path: COOKIE_PATH });
     return undefined;
   });
@@ -328,6 +339,7 @@ export const authModule: ApiModule = ({ routes: r, services }) => {
         entityId: auth.userId,
       });
     });
+    services.bus.invalidateAuth({ userId: auth.userId, exceptSessionId: auth.sessionId });
     return undefined;
   });
 };

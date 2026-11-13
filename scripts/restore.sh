@@ -38,16 +38,18 @@ if [[ "$FILE" == *.gpg ]]; then
 fi
 
 EXISTS="$(q postgres "SELECT 1 FROM pg_database WHERE datname='$TARGET'")"
+CREATED=0
 if [ -n "$EXISTS" ]; then
   TABLES="$(q "$TARGET" "SELECT count(*) FROM pg_tables WHERE schemaname='public'")"
   [ "$TABLES" = 0 ] || die "目标库 $TARGET 已存在且非空（$TABLES 张表），拒绝覆盖"
 else
   q postgres "CREATE DATABASE $TARGET OWNER wms_owner" >/dev/null
+  CREATED=1
 fi
 START=$(date +%s)
 log "恢复 $(basename "$FILE") → $TARGET"
 if ! "$PG_RESTORE" --exit-on-error --no-password -d "$TARGET" "$SRC"; then
-  [ "$KEEP" = 1 ] || q postgres "DROP DATABASE IF EXISTS $TARGET WITH (FORCE)" >/dev/null
+  if [ "$CREATED" = 1 ] && [ "$KEEP" != 1 ]; then q postgres "DROP DATABASE IF EXISTS $TARGET WITH (FORCE)" >/dev/null; fi
   die "pg_restore 失败"
 fi
 # 运行时角色可连接（与 dev-db.sh create 一致）
@@ -58,6 +60,6 @@ BAD="$(node -e 'const j=JSON.parse(process.argv[1]);console.log(Object.values(j.
 OUTJSON="$(node -e 'const j=JSON.parse(process.argv[1]);j.restoreSeconds=Number(process.argv[2]);j.source=process.argv[3];j.kept=process.argv[4]==="1";console.log(JSON.stringify(j))' "$JSON" "$SECS" "$(basename "$FILE")" "$KEEP")"
 [ -n "$REPORT" ] && { echo "$OUTJSON" > "$REPORT"; chmod 600 "$REPORT"; }
 log "恢复耗时 ${SECS}s；对账问题数 $BAD"
-if [ "$KEEP" = 1 ]; then log "保留恢复库 $TARGET"; else q postgres "DROP DATABASE IF EXISTS $TARGET WITH (FORCE)" >/dev/null; log "已删除恢复库 $TARGET"; fi
+if [ "$CREATED" = 1 ] && [ "$KEEP" != 1 ]; then q postgres "DROP DATABASE IF EXISTS $TARGET WITH (FORCE)" >/dev/null; log "已删除恢复库 $TARGET"; elif [ "$KEEP" = 1 ]; then log "保留恢复库 $TARGET"; fi
 echo "$OUTJSON"
 [ "$BAD" = 0 ] || exit 4

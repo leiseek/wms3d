@@ -49,8 +49,9 @@ pnpm check:ownership                        # 改动只能落在下方“独占�
 4. 测试里用到 DB 时用 `apps/api/src/test/pg.ts` 的 `cloneTestDb()`（每文件一个克隆库，结束 `drop()`），不要直接写开发库。
 
 ## 验收测试
-- web mock e2e（Playwright，`apps/mobile/e2e/`，手机/平板两种视口）：登录、连续上架（HID 模拟键入）、撤销、意外码拒绝、离线 10 单后恢复同步、令牌过期 `BLOCKED_AUTH` 后重新登录继续、换班代交成功与伪造被拒。
-- Android：`pnpm apk:debug` 成功（同时跑 `testDebugUnitTest`：ScanKeyBuffer、HidWedgeBuffer、SPP 帧切分、Robolectric pre-IME）；APK 在 `/workspace/wms3d-artifacts/`。
+- 移动端 Vitest 单测约 30+ 条（`apps/mobile/src/core` 等）；不要把全仓数百条单测算作移动端数量。
+- web mock e2e（Playwright，`apps/mobile/e2e/`，约 8 个场景 × 手机/平板两种视口）：登录、连续上架（HID 模拟键入）、撤销、意外码拒绝、离线 10 单后恢复同步、令牌过期 `BLOCKED_AUTH` 后重新登录继续、换班代交成功与伪造被拒。已纳入 `scripts/ci-local.sh` 门禁（`e2e-mobile-ui`）。
+- Android：`pnpm apk:debug` 成功（同时跑 `testDebugUnitTest`，约 46 条：ScanKeyBuffer、HidWedgeBuffer、SPP 帧切分、Robolectric pre-IME）；APK 在 `/workspace/wms3d-artifacts/`。`--full` 门禁尽量跑 JVM 单测。
 - 低版本 WebView：`webview-too-old.html` 两种文案、`index.html` 内联 ES5 检测保留。
 
 ## 备注

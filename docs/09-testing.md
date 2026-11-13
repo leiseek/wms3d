@@ -59,8 +59,19 @@ dev 面板：模拟扫码输入 + 演示条码按钮，可选 HID 序列（逐�
 - **Playwright DOM 截图**：相机模式下上半屏透明区像素检查（alpha = 0），确认没有遮挡层。
 - 真机项在 M6 现场验证（10 §M6）。
 
+## 5.2 测试规模（勿夸大）
+
+移动端**不是**“近 300 条单测”。截至 CR1 修复轮：
+
+- 移动端 Vitest（`apps/mobile`，主要是 `src/core`）：约 30+ 条（含 CR1 撤销竞态 / 刷新保留 token）；
+- 移动端 Playwright web mock e2e（`apps/mobile/e2e/`）：约 8 个场景 × 手机/平板两视口；
+- 管理后台 Playwright e2e（`apps/admin/e2e/`）：约 13 条，对契约 mock；
+- Android Kotlin / Robolectric JVM 单测：约 46 条。
+
+全仓 Vitest（contracts / domain / api / mock 等）才是更大的数字，不能记到移动端头上。
+
 ## 6. 本地 CI（`pnpm verify`；GitHub 接入后同配置）
-`install --frozen-lockfile → lint(eslint+boundaries) → typecheck → test:unit → test:contract → test:int → build → e2e smoke → (可选) android assembleDebug`。里程碑合并到 main 前必须全绿。
+`scripts/ci-local.sh`：`install --frozen-lockfile → lint → typecheck → test → build → check:ownership`；非 `--quick` 另加脚本单测、`e2e` mock/real、**管理后台 e2e**、**移动端 web UI e2e**。`--full`（`pnpm verify:full`）再加 format-check、backup-drill、native-smoke。Android `testDebugUnitTest` 仍随 `pnpm apk:debug` 跑（Gradle flock），暂不纳入 `--full` 以免离线 Gradle 导致门禁红。里程碑合并到 main 前必须全绿。
 
 ## 7. 缺陷分级
 P0 数据错误/越权 → 立即修复 + 回归；P1 主流程阻断；P2 体验；P3 文案。

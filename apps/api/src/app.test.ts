@@ -1,4 +1,5 @@
-import { describe, expect, it } from 'vitest';
+import { afterAll, describe, expect, it } from 'vitest';
+import { cloneTestDb, pgAvailable, type TestDb } from './test/pg.ts';
 import { CONTRACT_VERSION, Problem, routeList } from '@wms3d/contracts';
 import { buildApp } from './app.ts';
 import type { AuthContext } from './lib/auth.ts';
@@ -39,10 +40,15 @@ describe('API 外壳', () => {
     await app.close();
   });
 
-  it.skipIf(!process.env.DATABASE_URL)('ready 有库时 200', async () => {
-    const app = buildApp({ databaseUrl: process.env.DATABASE_URL, env: {} });
-    expect((await app.inject({ method: 'GET', url: '/api/v1/ready' })).statusCode).toBe(200);
-    await app.close();
+  describe.skipIf(!pgAvailable)('ready 有库', () => {
+    let tdb: TestDb;
+    afterAll(() => tdb?.drop());
+    it('ready 有库时 200', async () => {
+      tdb = cloneTestDb();
+      const app = buildApp({ databaseUrl: tdb.appUrl, env: {} });
+      expect((await app.inject({ method: 'GET', url: '/api/v1/ready' })).statusCode).toBe(200);
+      await app.close();
+    });
   });
 
   it('所有契约路由均已注册（实现或 501 桩）；ws-a1 路由全部已实现', async () => {

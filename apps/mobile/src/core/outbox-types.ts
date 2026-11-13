@@ -60,6 +60,15 @@ export interface OutboxStore {
   /** 删除早于 before 的 DONE/CANCELLED，返回删除条数 */
   purgeFinished(before: number): Promise<number>;
   clear(): Promise<void>;
+  /**
+   * 条件更新（CR1 #3）：仅当当前 status 属于 allowed 时写入 patch。
+   * 成功返回更新后的条目，否则 undefined。
+   */
+  claim(
+    id: string,
+    allowed: readonly OutboxStatus[],
+    patch: Partial<OutboxEntry>,
+  ): Promise<OutboxEntry | undefined>;
 }
 
 /** 行引用（用于“可能受影响”判断）：仓位 + SKU（id 或条码原文） */
@@ -116,5 +125,16 @@ export class MemoryOutboxStore implements OutboxStore {
   }
   async clear(): Promise<void> {
     this.m.clear();
+  }
+  async claim(
+    id: string,
+    allowed: readonly OutboxStatus[],
+    patch: Partial<OutboxEntry>,
+  ): Promise<OutboxEntry | undefined> {
+    const e = this.m.get(id);
+    if (!e || !allowed.includes(e.status)) return undefined;
+    const next = { ...e, ...patch };
+    this.m.set(id, structuredClone(next));
+    return structuredClone(next);
   }
 }

@@ -130,6 +130,40 @@ describe.skipIf(!pgAvailable)('skus（05 §3，D25）', () => {
     expect((await k.pool.query(`SELECT 1 FROM skus WHERE code='E-1'`)).rowCount).toBe(0);
   });
 
+  it('缺列或空单元格不覆盖已有字段（CR1 #5）', async () => {
+    const code = `KEEP-${Date.now()}`;
+    const created = (
+      await api('POST', '/skus', {
+        code,
+        name: 'Keep me',
+        spec: '原规格',
+        uom: 'CS',
+        safetyStock: 50,
+        lengthMm: 100,
+        widthMm: 80,
+        heightMm: 60,
+        weightG: 250,
+      })
+    ).json();
+    expect((await upload(`code,name\n${code},只改名\n`, false)).statusCode).toBe(200);
+    const after = (
+      await k.pool.query(
+        `SELECT name, spec, uom, safety_stock, length_mm, width_mm, height_mm, weight_g FROM skus WHERE id=$1`,
+        [created.id],
+      )
+    ).rows[0];
+    expect(after).toMatchObject({
+      name: '只改名',
+      spec: '原规格',
+      uom: 'CS',
+      safety_stock: 50,
+      length_mm: 100,
+      width_mm: 80,
+      height_mm: 60,
+      weight_g: 250,
+    });
+  });
+
   it('10k 行导入 < 10s（每 1000 行一个事务），可重跑（幂等 upsert）；导出转义 =cmd', async () => {
     const lines = ['code,name,spec,uom,barcode,pack_qty,safety_stock'];
     for (let i = 0; i < 10_000; i++)

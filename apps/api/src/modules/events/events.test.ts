@@ -119,4 +119,38 @@ describe('SSE /events（真实端口）', () => {
     await s.done.catch(() => undefined);
     await waitFor(() => bus.ee.listenerCount(WH1) === 0);
   });
+
+  it('登出或撤销仓库授权后 SSE 立即关流，不再推送 stock.changed（CR1 #1）', async () => {
+    const token = jwtLike(Math.floor(Date.now() / 1000) + 120);
+    k.auth.set(token, k.auth.get('op1')!);
+    const res = await fetch(`${base}/events?warehouseId=${WH1}`, {
+      headers: { authorization: `Bearer ${token}` },
+    });
+    expect(res.status).toBe(200);
+    const s = readSse(res);
+    const logout = await k.app.inject({
+      method: 'POST',
+      url: '/api/v1/auth/logout',
+      headers: { authorization: `Bearer ${token}` },
+      payload: {},
+    });
+    expect([200, 204]).toContain(logout.statusCode);
+    await s.done;
+    const L = fresh();
+    const r = await k.txn('op1', cmd('INBOUND', [{ locationId: L, skuId: SKUS[2]!.id, qty: 1 }]));
+    expect([200, 201]).toContain(r.statusCode);
+    await new Promise((x) => setTimeout(x, 150));
+    expect(s.frames.some((f) => f.event === 'stock.changed')).toBe(false);
+
+    const token2 = jwtLike(Math.floor(Date.now() / 1000) + 120);
+    k.auth.set(token2, k.auth.get('op1')!);
+    const res2 = await fetch(`${base}/events?warehouseId=${WH1}`, {
+      headers: { authorization: `Bearer ${token2}` },
+    });
+    const s2 = readSse(res2);
+    k.app.services.bus.invalidateAuth({
+      revokeWarehouses: { userId: k.auth.get('op1')!.userId, warehouseIds: [WH1] },
+    });
+    await s2.done;
+  }, 15_000);
 });

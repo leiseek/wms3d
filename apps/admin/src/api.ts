@@ -31,7 +31,15 @@ export async function refreshSession(): Promise<boolean> {
     const r = await api.r.authRefresh({ body: { deviceId: deviceId() } });
     accessToken = r.accessToken;
     return true;
-  } catch {
+  } catch (e) {
+    const status = (e as { status?: number }).status;
+    const code = (e as { code?: string }).code;
+    const authFail =
+      status === 401 ||
+      code === 'UNAUTHENTICATED' ||
+      code === 'DEVICE_DISABLED' ||
+      code === 'PASSWORD_CHANGE_REQUIRED';
+    if (!authFail) throw e; // 5xx / 429 / 网络错误：不跳登录页，由调用方重试
     accessToken = null;
     return false;
   }

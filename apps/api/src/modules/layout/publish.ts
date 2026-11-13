@@ -7,6 +7,7 @@ import { writeAudit, type AuditEntry } from '../../lib/audit.ts';
 import { num, type Queryable } from '../../lib/db.ts';
 import { ApiError } from '../../lib/problem.ts';
 import { lockBarcodes, rebuildWarehouseRegistry } from '../../lib/registry.ts';
+import { afterLocationsLocked } from '../../lib/tx-hooks.ts';
 import { planPublish, validateDoc, type ExistingLoc, type PublishPlan } from './plan.ts';
 
 /** 测试钩子（09 §2 #17：发布事务运行 60s 不被 transaction_timeout 终止）。生产代码不设置。 */
@@ -143,6 +144,7 @@ export async function publishLayout(pool: pg.Pool, inp: PublishInput): Promise<P
       await c.query(`SELECT id FROM locations WHERE id = ANY($1::uuid[]) ORDER BY id FOR UPDATE`, [
         touched,
       ]);
+      await afterLocationsLocked('publish-locked', touched);
       const fresh = await c.query<{ id: string; on_hand: number }>(
         `SELECT location_id AS id, sum(on_hand)::int AS on_hand FROM stock_balances
           WHERE location_id = ANY($1::uuid[]) GROUP BY location_id`,

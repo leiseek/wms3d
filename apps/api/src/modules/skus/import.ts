@@ -68,6 +68,26 @@ export async function importSkus(
     const i = col.get(k);
     return i === undefined ? '' : unescapeCell((r[i] ?? '').trim());
   };
+  const has = (k: string) => col.has(k);
+  const previewCodes = data
+    .map((r) => get(r, 'code'))
+    .filter((c) => c && SKU_CODE.test(c) && c.length <= 64);
+  const existRows = await pool.query<{
+    code: string;
+    name: string;
+    spec: string | null;
+    uom: string;
+    safety_stock: number;
+    length_mm: number | null;
+    width_mm: number | null;
+    height_mm: number | null;
+    weight_g: number | null;
+  }>(
+    `SELECT code, name, spec, uom, safety_stock, length_mm, width_mm, height_mm, weight_g
+       FROM skus WHERE code = ANY($1::text[])`,
+    [previewCodes],
+  );
+  const existingRow = new Map(existRows.rows.map((x) => [x.code, x]));
   const int = (
     row: number,
     r: string[],
@@ -96,22 +116,34 @@ export async function importSkus(
       return err(row, 'code', 'FORMAT', 'code 只允许字母数字及 . _ - /，最长 64');
     let s = skus.get(code);
     if (!s) {
-      if (!name) return err(row, 'name', 'REQUIRED', 'name 必填');
+      if (!name && !existingRow.has(code)) return err(row, 'name', 'REQUIRED', 'name 必填');
       if (name.length > 128) return err(row, 'name', 'FORMAT', 'name 最长 128');
-      const spec = get(r, 'spec');
-      const uom = get(r, 'uom') || 'EA';
-      if (spec.length > 128) err(row, 'spec', 'FORMAT', 'spec 最长 128');
-      if (uom.length > 8) err(row, 'uom', 'FORMAT', 'uom 最长 8');
+      const specRaw = has('spec') ? get(r, 'spec') : null;
+      const uomRaw = has('uom') ? get(r, 'uom') : '';
+      if (specRaw && specRaw.length > 128) err(row, 'spec', 'FORMAT', 'spec 最长 128');
+      if (uomRaw.length > 8) err(row, 'uom', 'FORMAT', 'uom 最长 8');
+      const ex = existingRow.get(code);
+      const safety = int(row, r, 'safety_stock', 0, null);
+      const lengthMm = int(row, r, 'length_mm', 1, null);
+      const widthMm = int(row, r, 'width_mm', 1, null);
+      const heightMm = int(row, r, 'height_mm', 1, null);
+      const weightG = int(row, r, 'weight_g', 1, null);
       s = {
         code,
-        name,
-        spec: spec || null,
-        uom,
-        safetyStock: int(row, r, 'safety_stock', 0, 0)!,
-        lengthMm: int(row, r, 'length_mm', 1, null),
-        widthMm: int(row, r, 'width_mm', 1, null),
-        heightMm: int(row, r, 'height_mm', 1, null),
-        weightG: int(row, r, 'weight_g', 1, null),
+        name: name || ex?.name || '',
+        // 缺列或空单元格：更新保持原值，新建用默认（CR1 #5，05 §3）
+        spec: !has('spec') || get(r, 'spec') === '' ? (ex?.spec ?? null) : specRaw || null,
+        uom: !has('uom') || !uomRaw ? (ex?.uom ?? 'EA') : uomRaw,
+        safetyStock:
+          !has('safety_stock') || get(r, 'safety_stock') === ''
+            ? (ex?.safety_stock ?? 0)
+            : (safety ?? 0),
+        lengthMm:
+          !has('length_mm') || get(r, 'length_mm') === '' ? (ex?.length_mm ?? null) : lengthMm,
+        widthMm: !has('width_mm') || get(r, 'width_mm') === '' ? (ex?.width_mm ?? null) : widthMm,
+        heightMm:
+          !has('height_mm') || get(r, 'height_mm') === '' ? (ex?.height_mm ?? null) : heightMm,
+        weightG: !has('weight_g') || get(r, 'weight_g') === '' ? (ex?.weight_g ?? null) : weightG,
         barcodes: [],
         rows: 0,
       };

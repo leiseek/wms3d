@@ -16,7 +16,7 @@ export {
 export type { TemplateSpec, XDimension } from './templates.ts';
 export { checkCapacity, assertCapacity, LabelCapacityError } from './capacity.ts';
 export { renderLabelsPdf, renderCalibrationPdf } from './render-pdf.ts';
-export { renderLabelsZpl } from './render-zpl.ts';
+export { renderLabelsZpl, zplEscape, zplFd } from './render-zpl.ts';
 export {
   countCode128Modules,
   countEan13Modules,

@@ -21,7 +21,7 @@ export class MemorySecureStore implements SecureStore {
   }
 }
 
-const RT_KEY = 'wms3d.refreshToken';
+export const RT_KEY = 'wms3d.refreshToken';
 const SESSION_KEY = 'wms3d.session';
 
 export interface SessionState {
@@ -145,7 +145,17 @@ export class Session {
       if (r.refreshToken) await this.o.secure.set(RT_KEY, r.refreshToken);
       return true;
     } catch (e) {
-      if (e instanceof ApiError && e.code === 'NETWORK') throw e;
+      // 只有认证失败才丢掉 refresh token（CR1 #4）。5xx / 429 / 网络错误必须保留，以便稍后重试。
+      const authFail =
+        e instanceof ApiError &&
+        (e.status === 401 ||
+          e.code === 'UNAUTHENTICATED' ||
+          e.code === 'DEVICE_DISABLED' ||
+          e.code === 'PASSWORD_CHANGE_REQUIRED');
+      if (!authFail) {
+        if (e instanceof ApiError) throw e;
+        throw e;
+      }
       this.accessToken = null;
       await this.o.secure.remove(RT_KEY);
       this.o.onChange?.(this.state);

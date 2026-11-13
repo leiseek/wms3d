@@ -121,7 +121,7 @@ export const usersModule: ApiModule = ({ routes: r, services }) => {
       if (body.isActive === false) throw new ApiError('CONFLICT', '不能停用自己');
       if (body.role && body.role !== 'ADMIN') throw new ApiError('CONFLICT', '不能降低自己的角色');
     }
-    return withTx(pool, async (c) => {
+    const out = await withTx(pool, async (c) => {
       const before = await loadUser(c, params.id);
       if (!before) throw new ApiError('NOT_FOUND', '用户不存在');
       await c.query(`SELECT 1 FROM users WHERE id = $1 FOR UPDATE`, [params.id]);
@@ -152,8 +152,17 @@ export const usersModule: ApiModule = ({ routes: r, services }) => {
         before: { ...before, warehouses: before.warehouses.map((w) => w.code) },
         after: { ...after, warehouses: after.warehouses.map((w) => w.code) },
       });
-      return after;
+      const revoked = before.warehouses
+        .map((w) => w.id)
+        .filter((id) => !after.allWarehouses && !after.warehouses.some((w) => w.id === id));
+      return { after, deactivated: body.isActive === false, revoked };
     });
+    if (out.deactivated) services.bus.invalidateAuth({ userId: params.id });
+    else if (out.revoked.length)
+      services.bus.invalidateAuth({
+        revokeWarehouses: { userId: params.id, warehouseIds: out.revoked },
+      });
+    return out.after;
   });
 
   r.register(routes.resetPassword, async ({ params, body, req }) => {
@@ -173,6 +182,7 @@ export const usersModule: ApiModule = ({ routes: r, services }) => {
         entityId: params.id,
       });
     });
+    services.bus.invalidateAuth({ userId: params.id });
     return undefined;
   });
 
@@ -222,6 +232,7 @@ export const usersModule: ApiModule = ({ routes: r, services }) => {
       return deviceView(upd.rows[0]!);
     });
     services.invalidateDevice(params.id);
+    if (body.disabled === true) services.bus.invalidateAuth({ deviceId: params.id });
     return out;
   });
 
