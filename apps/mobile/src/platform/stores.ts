@@ -54,6 +54,15 @@ export class IdbOutboxStore implements OutboxStore {
       : await getDb().outbox.toArray();
     return all.sort(sortEntries);
   }
+  async claim(id: string, allowed: readonly OutboxStatus[], patch: Partial<OutboxEntry>) {
+    return getDb().transaction('rw', getDb().outbox, async () => {
+      const cur = await getDb().outbox.get(id);
+      if (!cur || !allowed.includes(cur.status)) return undefined;
+      const next = { ...cur, ...patch };
+      await getDb().outbox.put(next);
+      return next;
+    });
+  }
   async remove(id: string) {
     await getDb().outbox.delete(id);
   }

@@ -107,13 +107,13 @@ describe('错误合并与报告', () => {
       { row: 3, column: 'code', code: 'REQUIRED' as const, message: 'm', source: 'local' as const },
     ];
     const server = [
-      { row: 1, column: 'barcode', code: 'BARCODE_CONFLICT' as const, message: '已被 X 使用' },
-      { row: 3, column: 'code', code: 'REQUIRED' as const, message: 'm' },
+      { row: 2, column: 'barcode', code: 'BARCODE_CONFLICT' as const, message: '已被 X 使用' },
+      { row: 4, column: 'code', code: 'REQUIRED' as const, message: '缺少 code' },
     ];
     const m = mergeRowErrors(local, server);
-    expect(m.map((e) => [e.row, e.source])).toEqual([
-      [1, 'server'],
-      [3, 'local'],
+    expect(m.map((e) => [e.row, e.column, e.source])).toEqual([
+      [1, 'barcode', 'server'],
+      [3, 'code', 'local'],
     ]);
   });
   it('报告带原始行', () => {
