@@ -1,0 +1,28 @@
+[Unit]
+Description=wms3d PostgreSQL 17
+After=network.target
+Documentation=file://@PREFIX@/RUNBOOK.md
+
+[Service]
+Type=simple
+User=wms3d
+Group=wms3d
+Environment=PGDATA=@PREFIX@/data/pg
+ExecStart=@PG_BIN@/postgres -D @PREFIX@/data/pg
+ExecReload=/bin/kill -HUP $MAINPID
+KillMode=mixed
+KillSignal=SIGINT
+TimeoutStopSec=120
+Restart=on-failure
+RestartSec=5
+RuntimeDirectory=wms3d
+RuntimeDirectoryPreserve=yes
+OOMScoreAdjust=-900
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectSystem=strict
+ProtectHome=true
+ReadWritePaths=@PREFIX@/data @PREFIX@/logs
+
+[Install]
+WantedBy=multi-user.target

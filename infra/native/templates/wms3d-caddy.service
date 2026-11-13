@@ -1,0 +1,25 @@
+[Unit]
+Description=wms3d Caddy (HTTPS + 静态资源 + 反向代理)
+After=network-online.target wms3d-api.service
+Wants=network-online.target
+
+[Service]
+Type=notify
+User=wms3d
+Group=wms3d
+Environment=XDG_DATA_HOME=@PREFIX@/data/caddy XDG_CONFIG_HOME=@PREFIX@/data/caddy
+EnvironmentFile=-@PREFIX@/etc/caddy.env
+ExecStart=@CADDY@ run --environ --config @PREFIX@/etc/Caddyfile --adapter caddyfile
+ExecReload=@CADDY@ reload --config @PREFIX@/etc/Caddyfile --adapter caddyfile --force
+TimeoutStopSec=5s
+Restart=on-failure
+AmbientCapabilities=CAP_NET_BIND_SERVICE
+CapabilityBoundingSet=CAP_NET_BIND_SERVICE
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectSystem=strict
+ProtectHome=true
+ReadWritePaths=@PREFIX@/data/caddy @PREFIX@/logs
+
+[Install]
+WantedBy=multi-user.target

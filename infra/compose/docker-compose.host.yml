@@ -1,0 +1,20 @@
+# ⚠️ 未验证。覆盖文件：所有服务 host 网络（M0a spike：本机唯一可用的网络模式）。端口直接占用宿主机：PG 5432、API 3000、Caddy 80/443。
+services:
+  postgres:
+    network_mode: host
+  api:
+    network_mode: host
+    environment:
+      HOST: 127.0.0.1
+      WMS_PG_HOST: 127.0.0.1
+      DATABASE_URL: postgres://wms_app:${WMS_APP_PASSWORD}@127.0.0.1:5432/${WMS_DB:-wms3d}
+      MIGRATION_DATABASE_URL: postgres://wms_owner:${WMS_OWNER_PASSWORD}@127.0.0.1:5432/${WMS_DB:-wms3d}
+  caddy:
+    network_mode: host
+    ports: !reset []
+    environment:
+      WMS_API_UPSTREAM: 127.0.0.1:3000
+  backup:
+    network_mode: host
+    environment:
+      PGHOST: 127.0.0.1

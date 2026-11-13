@@ -1,0 +1,93 @@
+# ⚠️ 未在本机运行验证（见 README.md）。服务名统一为 postgres / api / caddy / backup（D38）。
+name: wms3d
+services:
+  postgres:
+    image: postgres:17-bookworm # Debian，与开发/原生路径同 libc（D37）
+    restart: unless-stopped
+    environment:
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?必填}
+      POSTGRES_INITDB_ARGS: --locale-provider=builtin --builtin-locale=C.UTF-8 --encoding=UTF8
+      WMS_DB: ${WMS_DB:-wms3d}
+      WMS_OWNER_PASSWORD: ${WMS_OWNER_PASSWORD:?必填}
+      WMS_APP_PASSWORD: ${WMS_APP_PASSWORD:?必填}
+      TZ: ${TZ:-Asia/Shanghai}
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+      - ./initdb:/docker-entrypoint-initdb.d:ro
+    healthcheck:
+      test: ['CMD-SHELL', 'pg_isready -U postgres -d $${WMS_DB}']
+      interval: 5s
+      timeout: 3s
+      retries: 30
+
+  api:
+    build:
+      context: ../..
+      dockerfile: infra/compose/api.Dockerfile
+    restart: unless-stopped
+    depends_on:
+      postgres: { condition: service_healthy }
+    environment:
+      NODE_ENV: production
+      HOST: 0.0.0.0
+      PORT_API: '3000'
+      DATABASE_URL: postgres://wms_app:${WMS_APP_PASSWORD}@${WMS_PG_HOST:-postgres}:5432/${WMS_DB:-wms3d}
+      MIGRATION_DATABASE_URL: postgres://wms_owner:${WMS_OWNER_PASSWORD}@${WMS_PG_HOST:-postgres}:5432/${WMS_DB:-wms3d}
+      WMS_MIGRATE_ON_START: '1'
+      JWT_SECRET: ${JWT_SECRET:?必填，≥32 字符}
+      JWT_KID: ${JWT_KID:-k1}
+      TRUST_PROXY: '1'
+      WMS_JOBS: '1'
+    healthcheck:
+      test:
+        [
+          'CMD',
+          'node',
+          '-e',
+          "fetch('http://127.0.0.1:3000/api/v1/ready').then(r=>process.exit(r.ok?0:1),()=>process.exit(1))",
+        ]
+      interval: 10s
+      timeout: 5s
+      retries: 12
+
+  caddy:
+    build:
+      context: ../..
+      dockerfile: infra/compose/caddy.Dockerfile
+    restart: unless-stopped
+    depends_on:
+      api: { condition: service_healthy }
+    environment:
+      WMS_DOMAIN: ${WMS_DOMAIN:?必填，例如 wms.example.com}
+      WMS_API_UPSTREAM: ${WMS_API_UPSTREAM:-api:3000}
+      WMS_TLS: ${WMS_TLS:-internal}
+    ports: ['80:80', '443:443']
+    volumes:
+      - caddy_data:/data
+      - ./downloads:/srv/downloads:ro
+
+  backup:
+    image: postgres:17-bookworm
+    restart: unless-stopped
+    depends_on:
+      postgres: { condition: service_healthy }
+    entrypoint: ['/bin/bash', '/infra/backup-loop.sh']
+    environment:
+      PGHOST: ${WMS_PG_HOST:-postgres}
+      PGPORT: '5432'
+      PGUSER: postgres
+      PGPASSWORD: ${POSTGRES_PASSWORD}
+      WMS_DB: ${WMS_DB:-wms3d}
+      TZ: ${TZ:-Asia/Shanghai}
+      BACKUP_REMOTE: ${BACKUP_REMOTE:-}
+      BACKUP_RETAIN_DAILY: ${BACKUP_RETAIN_DAILY:-14}
+      BACKUP_RETAIN_WEEKLY: ${BACKUP_RETAIN_WEEKLY:-8}
+    volumes:
+      - backups:/backups
+      - ../../scripts:/scripts:ro
+      - ./backup-loop.sh:/infra/backup-loop.sh:ro
+
+volumes:
+  pgdata:
+  caddy_data:
+  backups:

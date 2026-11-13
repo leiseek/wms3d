@@ -1,0 +1,30 @@
+# ⚠️ compose 路径（未验证）。路由与 infra/native/templates/Caddyfile.tpl 一致。
+{$WMS_DOMAIN} {
+	tls {$WMS_TLS}
+	encode zstd gzip
+	header {
+		Strict-Transport-Security "max-age=31536000"
+		X-Frame-Options "DENY"
+		X-Content-Type-Options "nosniff"
+		Referrer-Policy "no-referrer"
+		Content-Security-Policy "default-src 'self'; img-src 'self' data: blob:; style-src 'self' 'unsafe-inline'; font-src 'self' data:; connect-src 'self'; worker-src 'self' blob:; frame-ancestors 'none'; base-uri 'self'; form-action 'self'"
+		-Server
+	}
+	handle /api/v1/events* {
+		reverse_proxy {$WMS_API_UPSTREAM} {
+			flush_interval -1
+		}
+	}
+	handle /api/* {
+		reverse_proxy {$WMS_API_UPSTREAM}
+	}
+	handle_path /downloads/* {
+		root * /srv/downloads
+		file_server
+	}
+	handle {
+		root * /srv/admin
+		try_files {path} /index.html
+		file_server
+	}
+}
