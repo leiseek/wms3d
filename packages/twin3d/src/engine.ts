@@ -145,6 +145,8 @@ export class TwinEngine {
     });
     this.renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, opts.maxPixelRatio ?? 2));
     this.renderer.setClearColor(0xeef1f5, 1);
+    this.renderer.outputColorSpace = THREE.SRGBColorSpace;
+    this.renderer.toneMapping = THREE.NoToneMapping;
     const canvas = this.renderer.domElement;
     canvas.style.display = 'block';
     canvas.style.width = '100%';
@@ -159,9 +161,9 @@ export class TwinEngine {
     this.controls.maxPolarAngle = Math.PI / 2 - 0.02;
     this.controls.touches = { ONE: THREE.TOUCH.PAN, TWO: THREE.TOUCH.DOLLY_ROTATE };
     this.controls.addEventListener('change', this.onControlsChange);
-    this.scene.add(new THREE.HemisphereLight(0xffffff, 0x8899aa, 1.6));
-    const sun = new THREE.DirectionalLight(0xffffff, 1.4);
-    sun.position.set(0.6, 1, 0.4);
+    this.scene.add(new THREE.HemisphereLight(0xffffff, 0x5c6570, 0.55));
+    const sun = new THREE.DirectionalLight(0xffffff, 2.25);
+    sun.position.set(0.85, 1.5, 0.55);
     this.scene.add(sun);
     this.scene.add(this.root);
     canvas.addEventListener('webglcontextlost', this.onLost, false);
@@ -508,7 +510,7 @@ export class TwinEngine {
     const emptyMat = new THREE.MeshBasicMaterial({
       color: 0xffffff,
       transparent: true,
-      opacity: 0.28,
+      opacity: 0.55,
       depthWrite: false,
     });
     const frameMat = new THREE.MeshLambertMaterial({ color: new THREE.Color(...COLORS.frame) });

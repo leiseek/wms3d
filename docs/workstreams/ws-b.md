@@ -68,4 +68,4 @@ pnpm check:ownership                        # 改动只能落在下方“独占�
 - twin3d 的 troika 类型现在随包导出：挂 `TwinView` 时不需要在 admin 里加 reference 或 include。
 
 ## Lead 更新 · contract-v1.3（2026-11-13 PT）
-已合并到 main（862f7ab）。v1.3：mock 的 SKU 导入会解析 CSV 并返回错误行（字段 `file`），服务端预检路径现在可以对 mock 做 E2E；`performedByName/submittedByName/userName` 可选字段已加（mock 有值，真实 API 待 A2 填充，缺省时回退到 id）；`balances.csv` 排到 M4.5。**发布按钮仅 ADMIN**（上面 LayoutDesignerPage 一节已更正）。
+已合并到 main（862f7ab）。v1.3：mock 的 SKU 导入会解析 CSV 并返回错误行（字段 `file`），服务端预检路径现在可以对 mock 做 E2E；`performedByName/submittedByName/userName` 可选字段已加（mock 有值，真实 API 待 A2 填充，缺省时回退到 id）；`balances.csv` 已在 M4.5 / contract-v1.4.0 落地。**发布按钮仅 ADMIN**（上面 LayoutDesignerPage 一节已更正）。

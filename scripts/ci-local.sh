@@ -63,6 +63,10 @@ if [ "$MODE" != quick ]; then
   else skip e2e "--no-e2e"; fi
 fi
 if [ "$MODE" = full ]; then
+  if [ "$E2E" = 1 ] && [ "$PG_UP" = 1 ]; then
+    run e2e-m45 bash scripts/e2e.sh real --ui -- --project=ui-m45 --reporter=list
+  elif [ "$E2E" != 1 ]; then skip e2e-m45 "--no-e2e"
+  else skip e2e-m45 "PG 未运行"; fi
   run format-check pnpm format:check
   if [ "$PG_UP" = 1 ]; then run backup-drill bash scripts/backup-drill.sh --db wms_lead --report-dir "$OUT"; else skip backup-drill "PG 未运行"; fi
   run native-smoke bash infra/native/install.sh --foreground --smoke

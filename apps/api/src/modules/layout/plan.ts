@@ -143,7 +143,7 @@ export function planPublish(expanded: ExpandResult, existing: ExistingLoc[]): Pu
     if (e && !used.has(e.id)) {
       used.add(e.id);
       matches.push({ idx, existing: e, round: 2, isActive: activeFor(e) });
-      reused.push({ locationId: e.id, code: l.code });
+      reused.push({ locationId: e.id, code: l.code, onHand: e.onHand });
     } else added.push(idx);
   }
   const deactivated = existing.filter((e) => !used.has(e.id) && (e.isActive || e.inRegistry));

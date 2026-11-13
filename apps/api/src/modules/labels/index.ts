@@ -24,6 +24,7 @@ import {
   renderCalibrationPdf,
   renderLabelsPdf,
   renderLabelsZpl,
+  verifyLabelPdf,
   type LabelItem,
 } from '@wms3d/labels';
 
@@ -236,6 +237,33 @@ export const labelsModule: ApiModule = ({ routes: r, services }) => {
       .header('X-Label-Count', String(items.length))
       .header('X-Reprints-Done', String(done.length))
       .send(zpl ? out : Buffer.from(out));
+  });
+
+  r.register(routes.verifyLabels, async ({ body, warehouseId }) => {
+    if (body.format === 'ZPL')
+      throw new ApiError('VALIDATION_FAILED', '核对仅支持 PDF', {
+        errors: [{ path: 'format', message: 'PDF' }],
+      });
+    const t = labelTemplates.find((x) => x.key === body.template)!;
+    if (!t.kinds.includes(body.kind))
+      throw new ApiError('VALIDATION_FAILED', `模板 ${t.key} 不支持 ${body.kind} 标签`, {
+        errors: [{ path: 'template', message: `支持：${t.kinds.join(', ')}` }],
+      });
+    const pool = poolOf(services);
+    const items = await resolveItems(pool, body.kind, warehouseId!, body.ids, body.filter);
+    if (!items.length) throw new ApiError('VALIDATION_FAILED', '没有可核对的对象');
+    const pdf = await renderLabelsPdf({
+      template: body.template,
+      dpi: body.dpi,
+      ...(body.startCell ? { startCell: body.startCell } : {}),
+      ...(body.offsetMm ? { offsetMm: body.offsetMm } : {}),
+      items,
+    });
+    return verifyLabelPdf(
+      pdf,
+      items.map((it) => ({ payload: it.payload, code: it.code })),
+      300,
+    );
   });
 
   r.register(routes.calibrationPdf, async ({ query, reply }) => {

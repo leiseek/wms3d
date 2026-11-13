@@ -125,6 +125,11 @@ function sample(id: string, wh: string, f: Fx, deviceId: string): Req {
       url: '/labels/render',
       payload: { template: 'loc-100x50', kind: 'LOCATION', warehouseId: wh, ids: [f.loc[wh]] },
     },
+    verifyLabels: {
+      method: 'POST',
+      url: '/labels/verify',
+      payload: { template: 'loc-100x50', kind: 'LOCATION', warehouseId: wh, ids: [f.loc[wh]] },
+    },
     calibrationPdf: { method: 'GET', url: '/labels/calibration.pdf?template=loc-100x50&dpi=203' },
     listReprints: { method: 'GET', url: `/label-reprint-requests?warehouseId=${wh}` },
     createReprint: {

@@ -129,6 +129,10 @@ describe('RBAC 自动矩阵（ws-a2 路由）', () => {
       method: 'GET',
       url: `/api/v1/inventory/movements.csv?warehouseId=${whOf(w)}`,
     }),
+    exportBalances: async (w) => ({
+      method: 'GET',
+      url: `/api/v1/inventory/balances.csv?warehouseId=${whOf(w)}`,
+    }),
     locate: async (w) => ({
       method: 'GET',
       url: `/api/v1/inventory/locate?warehouseId=${whOf(w)}&q=SKU-001`,

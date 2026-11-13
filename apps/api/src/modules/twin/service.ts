@@ -142,7 +142,7 @@ export async function computeOccupancy(
     qty.push(qv);
     skuCount.push(x?.skus ?? 0);
     effectiveMax.push(eff);
-    isActive.push(x?.is_active === false ? 0 : 1);
+    isActive.push(x && x.is_active !== false ? 1 : 0);
     fill.push(eff ? Math.min(1, qv / eff) : qv > 0 ? 1 : 0);
   }
   const core = { layoutVersion: version, qty, skuCount, fill, isActive, effectiveMax };

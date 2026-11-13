@@ -309,13 +309,13 @@ importers:
       pdfkit:
         specifier: ~0.20.2
         version: 0.20.2
+      zxing-wasm:
+        specifier: ~3.1.6
+        version: 3.1.6(@types/emscripten@1.41.6)
     devDependencies:
       '@types/pdfkit':
         specifier: ~0.17.7
         version: 0.17.7
-      zxing-wasm:
-        specifier: ~3.1.6
-        version: 3.1.6(@types/emscripten@1.41.6)
 
   packages/scanner:
     dependencies:

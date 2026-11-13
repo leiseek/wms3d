@@ -53,3 +53,18 @@ test('补打队列：申请 → 一键打印 → 标记完成', async ({ page })
   await page.getByText('已完成', { exact: true }).click();
   await expect(q.locator('tr', { hasText: 'A02-02-A01' }).first()).toBeVisible();
 });
+
+test('标签回读核对：生成后可见通过/失败', async ({ page }) => {
+  await loginToDashboard(page, 'manager');
+  await page.getByTestId('nav-labels').click();
+  await page.getByTestId('label-select-page').click();
+  await page.getByTestId('label-templates').getByText('loc-100x50').click();
+  await page.getByTestId('label-preview').click();
+  await expect(page.getByTestId('label-pdf')).toBeVisible();
+  const req = page.waitForRequest((r) => r.url().includes('/labels/verify'));
+  await page.getByTestId('label-verify').click();
+  await req;
+  await expect(page.getByTestId('label-verify-summary')).toBeVisible();
+  await expect(page.getByTestId('label-verify-result')).toBeVisible();
+  await expect(page.getByTestId('label-verify-pass').first()).toBeVisible();
+});

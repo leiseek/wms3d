@@ -38,6 +38,24 @@ export default defineConfig({
             testMatch: /mobile\..*spec\.ts/,
             use: { ...devices['Pixel 7'], baseURL: `http://127.0.0.1:${ports.mobile}` },
           },
+          {
+            name: 'ui-m45',
+            testDir: './tests/ui',
+            testMatch: /m45\..*spec\.ts/,
+            use: {
+              locale: 'zh-CN',
+              timezoneId: 'America/Los_Angeles',
+              launchOptions: {
+                executablePath: chrome,
+                args: [
+                  '--ignore-gpu-blocklist',
+                  '--enable-unsafe-swiftshader',
+                  '--use-angle=swiftshader',
+                  '--enable-webgl',
+                ],
+              },
+            },
+          },
         ]
       : []),
   ],

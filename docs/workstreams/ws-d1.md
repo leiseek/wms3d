@@ -12,7 +12,7 @@
 2. Konva 画布（react-konva 19.3.2；坐标约定 02 §2）：货架放置/拖动/吸附/90° 旋转、阵列复制、库区多边形、属性面板（编码预览）、撤销重做、实时校验。
 3. 草稿：`getLayout/createDraft/saveDraft`（If-Match，空闲 2s 有变化才自动保存；412 三方提示）、`validateLayout`（含差异）、**发布差异弹窗**（改码确认、待补打清单）→ `publishLayout`。
 4. 立面视图（2D 网格；运行时属性直接 PATCH locations）。
-5. M4.5：3D 预览分屏接 `@wms3d/twin3d`。
+5. M4.5：3D 预览分屏接 `@wms3d/twin3d`（已完成，`TwinPreview` + `toggle-3d`）。
 
 ## 使用的契约
 layout 系列端点（`getLayout`、`listLayoutVersions`、`createDraft`、`saveDraft`（If-Match）、`deleteDraft`、`validateLayout`（返回 issues + diff + locationCount）、`publishLayout`、`listRackTypes/createRackType/patchRackType`，以及 `patchLocation` 等 tag=locations 端点）与 contracts `LayoutDoc`（`packages/contracts/src/layout.ts`）；mock 已实现草稿/校验/发布（含删除 SHP-01 后发布 v2 的用例）。

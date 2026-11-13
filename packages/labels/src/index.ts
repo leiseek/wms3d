@@ -36,3 +36,6 @@ export type {
 export { MAX_LABELS_PER_RENDER } from './types.ts';
 export { mmToPt, ptToMm, dotsToMm, dotsToPt } from './units.ts';
 export { LabelFontError } from './fonts.ts';
+
+export { decodePdf, ensureZXing, matchDecoded, verifyLabelPdf } from './verify.ts';
+export type { LabelVerifyHit, LabelVerifyOutcome } from './verify.ts';

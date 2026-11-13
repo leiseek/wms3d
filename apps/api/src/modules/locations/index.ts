@@ -51,6 +51,24 @@ async function applyPatch(
   }
   const bad = new Set(withStock.map((x) => x.id));
   const ok = [...found.keys()].filter((id) => !bad.has(id));
+  if (patch.isActive === true && ok.length) {
+    const orphan = await c.query<{ id: string; code: string }>(
+      `SELECT l.id, l.code
+         FROM locations l
+         LEFT JOIN racks r ON r.id = l.rack_id
+         LEFT JOIN zones z ON z.id = l.zone_id
+        WHERE l.id = ANY($1::uuid[])
+          AND (r.id IS NULL OR r.is_active = false OR z.id IS NULL OR z.is_active = false)`,
+      [ok],
+    );
+    if (orphan.rows.length)
+      throw new ApiError('VALIDATION_FAILED', '仓位所属货架或库区已不在当前布局中，无法重新启用', {
+        context: {
+          locationIds: orphan.rows.map((r) => r.id),
+          codes: orphan.rows.map((r) => r.code),
+        },
+      });
+  }
   if (ok.length)
     await c.query(
       `UPDATE locations SET

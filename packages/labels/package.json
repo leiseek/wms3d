@@ -15,10 +15,10 @@
     "@wms3d/contracts": "workspace:*",
     "@wms3d/domain": "workspace:*",
     "bwip-js": "~4.11.4",
-    "pdfkit": "~0.20.2"
+    "pdfkit": "~0.20.2",
+    "zxing-wasm": "~3.1.6"
   },
   "devDependencies": {
-    "@types/pdfkit": "~0.17.7",
-    "zxing-wasm": "~3.1.6"
+    "@types/pdfkit": "~0.17.7"
   }
 }

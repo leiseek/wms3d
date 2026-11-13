@@ -22,7 +22,7 @@ import {
 } from 'antd';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useLocation } from 'react-router';
-import type { LabelKind, LabelTemplateKey } from '@wms3d/contracts';
+import type { LabelKind, LabelTemplateKey, LabelVerifyResult } from '@wms3d/contracts';
 import { api } from '../api';
 import { useMe, useWarehouseId } from '../session';
 import { can } from '../lib/rbac';
@@ -317,6 +317,8 @@ export default function LabelsPage() {
     count: string | null;
     reprintsDone: string | null;
   } | null>(null);
+  const [verify, setVerify] = useState<LabelVerifyResult | null>(null);
+  const [verifying, setVerifying] = useState(false);
   const whCode = me?.warehouses.find((w) => w.id === warehouseId)?.code ?? '';
 
   const tpls = useQuery({
@@ -416,6 +418,30 @@ export default function LabelsPage() {
     dpi,
     [...sel.values()].map((c) => (kind === 'SKU' || !whCode ? c : `${whCode}.${c}`)),
   );
+
+  const runVerify = async () => {
+    if (!template || !ids.length || format === 'ZPL') return;
+    setVerifying(true);
+    try {
+      const body = buildRenderBody({
+        template,
+        kind,
+        warehouseId,
+        ids,
+        dpi,
+        offset,
+        startCell,
+        isSheet: !!tpl?.sheet,
+        format: 'PDF',
+        ...(reprintIds.length ? { reprintRequestIds: reprintIds } : {}),
+      });
+      setVerify(await api.r.verifyLabels({ body }));
+    } catch (e) {
+      notify(e);
+    } finally {
+      setVerifying(false);
+    }
+  };
   useEffect(() => {
     if (tpl?.sheet && format === 'ZPL') setFormat('PDF');
   }, [tpl, format]);
@@ -619,6 +645,21 @@ export default function LabelsPage() {
             >
               下载 PDF
             </Button>
+            <Button
+              loading={verifying}
+              disabled={!ids.length || !template || format === 'ZPL'}
+              onClick={() => void runVerify()}
+              data-testid="label-verify"
+            >
+              回读核对
+            </Button>
+            {verify && (
+              <Tag color={verify.failed === 0 ? 'green' : 'red'} data-testid="label-verify-summary">
+                {verify.failed === 0
+                  ? `核对通过 ${verify.passed} 张`
+                  : `核对失败 ${verify.failed} / ${verify.passed + verify.failed}`}
+              </Tag>
+            )}
             <Button disabled={!template} onClick={calibration} data-testid="label-calibration">
               校准页
             </Button>
@@ -660,6 +701,34 @@ export default function LabelsPage() {
             />
           ) : (
             <Empty description="选择对象和模板后点击“生成预览”" />
+          )}
+          {verify && (
+            <Table
+              size="small"
+              style={{ marginTop: 12 }}
+              data-testid="label-verify-result"
+              rowKey={(_, i) => String(i)}
+              pagination={false}
+              dataSource={verify.items}
+              columns={[
+                { title: '编码', dataIndex: 'code', width: 140, render: (c: string) => c ?? '—' },
+                { title: '期望载荷', dataIndex: 'expected' },
+                { title: '回读', dataIndex: 'actual', render: (v: string | null) => v ?? '未识别' },
+                {
+                  title: '结果',
+                  dataIndex: 'pass',
+                  width: 80,
+                  render: (ok: boolean) => (
+                    <Tag
+                      color={ok ? 'green' : 'red'}
+                      data-testid={ok ? 'label-verify-pass' : 'label-verify-fail'}
+                    >
+                      {ok ? '通过' : '失败'}
+                    </Tag>
+                  ),
+                },
+              ]}
+            />
           )}
           {sel.size > 0 && (
             <Typography.Paragraph

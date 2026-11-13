@@ -8,6 +8,7 @@ import {
   locate,
   lowStock,
   movementsCsvStream,
+  balancesCsvStream,
 } from './queries.ts';
 import { installRawBodyCapture, rawBodyOf } from './raw-body.ts';
 import { loadTxns } from './views.ts';
@@ -77,6 +78,13 @@ export const inventoryModule: ApiModule = ({ app, routes: r, services }) => {
       .type('text/csv; charset=utf-8')
       .header('content-disposition', 'attachment; filename="movements.csv"')
       .send(movementsCsvStream(pool, warehouseId!, filters));
+  });
+  r.register(routes.exportBalances, async ({ query, warehouseId, reply }) => {
+    const { limit: _l, cursor: _c, ...filters } = query;
+    return reply
+      .type('text/csv; charset=utf-8')
+      .header('content-disposition', 'attachment; filename="balances.csv"')
+      .send(balancesCsvStream(pool, warehouseId!, filters));
   });
   r.register(routes.locate, async ({ query, warehouseId }) => locate(pool, warehouseId!, query.q));
   r.register(routes.lowStock, async ({ warehouseId }) => ({

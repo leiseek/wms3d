@@ -28,7 +28,10 @@ CREATE TABLE IF NOT EXISTS outbox (
   waitingSince INTEGER,
   mayBeAffected INTEGER NOT NULL DEFAULT 0,
   canAutoRetry INTEGER NOT NULL DEFAULT 0,
-  label TEXT NOT NULL DEFAULT ''
+  label TEXT NOT NULL DEFAULT '',
+  reverseKey TEXT,
+  reversalTxnId TEXT,
+  pendingReverse INTEGER NOT NULL DEFAULT 0
 );
 CREATE INDEX IF NOT EXISTS outbox_status_created ON outbox(status, createdAt);
 `;
@@ -51,6 +54,9 @@ const COLS = [
   'mayBeAffected',
   'canAutoRetry',
   'label',
+  'reverseKey',
+  'reversalTxnId',
+  'pendingReverse',
 ] as const;
 
 type Row = Record<(typeof COLS)[number], unknown>;
@@ -74,6 +80,9 @@ function toRow(e: OutboxEntry): unknown[] {
     e.mayBeAffected ? 1 : 0,
     e.canAutoRetry ? 1 : 0,
     e.label,
+    e.reverseKey,
+    e.reversalTxnId,
+    e.pendingReverse ? 1 : 0,
   ];
 }
 
@@ -98,6 +107,9 @@ function fromRow(r: Row): OutboxEntry {
     mayBeAffected: Number(r.mayBeAffected) === 1,
     canAutoRetry: Number(r.canAutoRetry) === 1,
     label: String(r.label ?? ''),
+    reverseKey: r.reverseKey == null ? null : String(r.reverseKey),
+    reversalTxnId: r.reversalTxnId == null ? null : String(r.reversalTxnId),
+    pendingReverse: Number(r.pendingReverse) === 1,
   };
 }
 
@@ -109,6 +121,15 @@ export class SqliteOutboxStore implements OutboxStore {
   }
   async init(): Promise<void> {
     await this.db.execute(OUTBOX_SCHEMA);
+    const cols = await this.db.query<{ name: string }>('PRAGMA table_info(outbox)', []);
+    const have = new Set(cols.map((c) => c.name));
+    const add: [string, string][] = [
+      ['reverseKey', 'TEXT'],
+      ['reversalTxnId', 'TEXT'],
+      ['pendingReverse', 'INTEGER NOT NULL DEFAULT 0'],
+    ];
+    for (const [name, typ] of add)
+      if (!have.has(name)) await this.db.execute(`ALTER TABLE outbox ADD COLUMN ${name} ${typ}`);
   }
   async put(e: OutboxEntry): Promise<void> {
     const ph = COLS.map(() => '?').join(',');

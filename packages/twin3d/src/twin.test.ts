@@ -224,11 +224,13 @@ describe('着色', () => {
       binStyle('skuCount', { ...occ, skuCount: occ.skuCount.map(() => 2) }, used, null).color,
     ).toEqual(COLORS.sku2);
   });
-  it('fill 0 / 0.5 / 1 → 绿 / 黄 / 橙', () => {
+  it('fill 档位：<50% / 50–90% / >90%', () => {
     expect(fillColor(0)).toEqual(COLORS.fillLow);
-    fillColor(0.5).forEach((v, i) => expect(v).toBeCloseTo(COLORS.fillMid[i]!, 6));
+    expect(fillColor(0.49)).toEqual(COLORS.fillLow);
+    expect(fillColor(0.5)).toEqual(COLORS.fillMid);
+    expect(fillColor(0.9)).toEqual(COLORS.fillMid);
+    expect(fillColor(0.91)).toEqual(COLORS.fillHigh);
     expect(fillColor(1)).toEqual(COLORS.fillHigh);
-    expect(fillColor(7)).toEqual(COLORS.fillHigh);
   });
 });
 
@@ -371,6 +373,39 @@ describe('occupancySync（06 §6）', () => {
     expect(reloadTwin).toHaveBeenCalledWith('version-mismatch');
     s.handleEvent(ev('layout.published', 9));
     expect(reloadTwin).toHaveBeenCalledWith('layout.published');
+    s.dispose();
+  });
+
+  it('拉取期间版本已变：丢弃过期 occupancy，不再次 reloadTwin（CR1 #17）', async () => {
+    vi.useFakeTimers();
+    let version = 3;
+    let release!: (o: Occupancy) => void;
+    const fetchOccupancy = vi.fn(
+      () =>
+        new Promise<Occupancy>((resolve) => {
+          release = resolve;
+        }),
+    );
+    const onOccupancy = vi.fn();
+    const reloadTwin = vi.fn();
+    const s = createOccupancySync({
+      getLayoutVersion: () => version,
+      fetchOccupancy,
+      onOccupancy,
+      reloadTwin,
+      now: () => 0,
+      isVisible: () => true,
+      debounceMs: 0,
+      minIntervalMs: 0,
+    });
+    s.refresh();
+    await vi.advanceTimersByTimeAsync(1);
+    expect(fetchOccupancy).toHaveBeenCalledTimes(1);
+    version = 4;
+    release({ layoutVersion: 3 } as Occupancy);
+    await vi.advanceTimersByTimeAsync(1);
+    expect(onOccupancy).not.toHaveBeenCalled();
+    expect(reloadTwin).not.toHaveBeenCalled();
     s.dispose();
   });
 

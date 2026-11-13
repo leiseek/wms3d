@@ -465,6 +465,38 @@ describe('离线队列（ADR-0007，03 §3.1 处理矩阵）', () => {
     expect(await r.outbox.undo(b.id)).toBe('reversed');
     expect(r.mock.store.txns.some((t) => t.type === 'REVERSAL')).toBe(true);
     expect((await r.outbox.list()).map((e) => e.status)).toEqual(['CANCELLED', 'CANCELLED']);
+    expect((await r.store.get(b.id))!.reverseKey).toBeTruthy();
+    expect((await r.store.get(b.id))!.pendingReverse).toBe(false);
+  });
+
+  it('冲正：离线入队，恢复后补发；409 TXN_ALREADY_REVERSED 视为成功（CR1 #12）', async () => {
+    const c = await enqueue('WH1.A01-01-A01', '6900010000004');
+    await r.outbox.drain();
+    expect((await r.store.get(c.id))!.status).toBe('DONE');
+    r.net.offline = true;
+    expect(await r.outbox.undo(c.id)).toBe('reversed');
+    const queued = (await r.store.get(c.id))!;
+    expect(queued.status).toBe('DONE');
+    expect(queued.pendingReverse).toBe(true);
+    expect(queued.reverseKey).toBeTruthy();
+    const key = queued.reverseKey;
+    r.net.offline = false;
+    await r.outbox.drain();
+    const done = (await r.store.get(c.id))!;
+    expect(done.status).toBe('CANCELLED');
+    expect(done.pendingReverse).toBe(false);
+    expect(done.reverseKey).toBe(key);
+    expect(done.reversalTxnId).toBeTruthy();
+
+    const d = await enqueue('WH1.A01-01-A02', '6900010000370');
+    await r.outbox.drain();
+    expect(await r.outbox.undo(d.id)).toBe('reversed');
+    const after = (await r.store.get(d.id))!;
+    // 模拟本地未记下冲正结果、再次用同一幂等键请求
+    await r.store.put({ ...after, status: 'DONE', pendingReverse: true, reversalTxnId: null });
+    expect(await r.outbox.undo(d.id)).toBe('reversed');
+    expect((await r.store.get(d.id))!.status).toBe('CANCELLED');
+    expect((await r.store.get(d.id))!.pendingReverse).toBe(false);
   });
 
   it('classify：5xx/429/网络 → 重试；改密 → 暂停；设备禁用 → 拒绝；键复用 → 上报', () => {

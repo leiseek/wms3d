@@ -214,7 +214,7 @@ class ScannerPlugin : Plugin() {
         val key = call.getString("key") ?: return call.reject("缺少 key")
         val value = call.getString("value") ?: return call.reject("缺少 value")
         val sealed = CryptoBox.seal(KeystoreKeys.key(), value, key)
-        prefs().edit().putString(key, sealed).apply()
+        prefs().edit().putString(key, sealed).commit()
         call.resolve()
     }
 
@@ -229,7 +229,7 @@ class ScannerPlugin : Plugin() {
     @PluginMethod
     fun secureRemove(call: PluginCall) {
         val key = call.getString("key") ?: return call.reject("缺少 key")
-        prefs().edit().remove(key).apply()
+        prefs().edit().remove(key).commit()
         call.resolve()
     }
 

@@ -79,4 +79,4 @@ pnpm check:ownership                        # 改动只能落在下方“独占�
 
 ## Lead 更新 · contract-v1.3（2026-11-13 PT）
 - **新任务（WS-B-2）**：交易单 / 台账查询返回 `performedByName`（以及 Txn 的 `submittedByName`），审计查询返回 `userName`（JOIN `users.display_name`）。都是可选字段，向后兼容。
-- **M4.5（WS-B-3）**：`GET /inventory/balances.csv`（query 同 BalancesQuery 去掉分页，roles MGR，text/csv），实现时向 Lead 提契约补丁。
+- **M4.5（WS-B-3）已完成**：`GET /inventory/balances.csv`（query 同 BalancesQuery 去掉分页，roles MGR，text/csv），契约 v1.4.0。

@@ -41,6 +41,12 @@ export interface OutboxEntry {
   canAutoRetry: boolean;
   /** 显示用摘要，如“上架 A01-01-A01 · SKU-001 ×12” */
   label: string;
+  /** 冲正幂等键（撤销已确认单时生成并持久化，重试复用） */
+  reverseKey: string | null;
+  /** 服务端冲正交易 id */
+  reversalTxnId: string | null;
+  /** 离线时已请求冲正，待联网补发 */
+  pendingReverse: boolean;
 }
 
 export const ACTIVE_STATUSES: readonly OutboxStatus[] = [
