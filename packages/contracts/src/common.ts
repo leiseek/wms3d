@@ -66,6 +66,7 @@ export const AdjustReason = z
 export const CountStatus = z
   .enum(['OPEN', 'COUNTING', 'REVIEW', 'CLOSED', 'CANCELLED'])
   .meta({ id: 'CountStatus' });
+export type CountStatus = z.infer<typeof CountStatus>;
 export const LayoutStatus = z.enum(['DRAFT', 'PUBLISHED', 'ARCHIVED']).meta({ id: 'LayoutStatus' });
 export const AuditResult = z.enum(['SUCCESS', 'DENIED', 'FAILED']).meta({ id: 'AuditResult' });
 

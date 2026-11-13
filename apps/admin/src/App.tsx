@@ -20,6 +20,8 @@ const StockPage = lazy(() => import('./pages/StockPage'));
 const MovementsPage = lazy(() => import('./pages/MovementsPage'));
 const TransactionsPage = lazy(() => import('./pages/TransactionsPage'));
 const AdjustPage = lazy(() => import('./pages/AdjustPage'));
+const CountsPage = lazy(() => import('./pages/CountsPage'));
+const AlertsPage = lazy(() => import('./pages/AlertsPage'));
 const LabelsPage = lazy(() => import('./pages/LabelsPage'));
 const UsersPage = lazy(() => import('./pages/UsersPage'));
 const AuditPage = lazy(() => import('./pages/AuditPage'));
@@ -92,6 +94,8 @@ const router = createBrowserRouter([
       { path: '/movements', element: page(<MovementsPage />) },
       { path: '/transactions', element: page(<TransactionsPage />) },
       { path: '/adjust', element: page(<AdjustPage />) },
+      { path: '/counts', element: page(<CountsPage />) },
+      { path: '/alerts', element: page(<AlertsPage />) },
       { path: '/twin', element: page(<TwinPage />) },
       { path: '/skus', element: page(<SkusPage />) },
       { path: '/locations', element: page(<LocationsPage />) },

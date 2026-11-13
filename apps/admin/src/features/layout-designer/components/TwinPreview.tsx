@@ -2,7 +2,7 @@
 /// <reference path="../../../../../../packages/twin3d/src/troika.d.ts" />
 // ↑ twin3d 的 troika 环境声明不在 admin tsconfig 的 include 内（见 docs/contract-requests/ws-d1-1.md）
 import { useDeferredValue, useMemo } from 'react';
-import type { LayoutDoc, TwinModel } from '@wms3d/contracts';
+import type { LayoutDoc, Occupancy, TwinModel } from '@wms3d/contracts';
 import { expandLayout } from '@wms3d/domain';
 import { TwinView } from '@wms3d/twin3d';
 
@@ -40,6 +40,19 @@ export default function TwinPreview(p: {
       return null;
     }
   }, [doc, p.pattern, p.warehouseId, p.warehouseCode]);
+  const occupancy = useMemo<Occupancy | null>(() => {
+    if (!model) return null;
+    const n = model.locations.id.length;
+    return {
+      layoutVersion: model.layoutVersion,
+      asOf: '1970-01-01T00:00:00.000Z',
+      qty: Array(n).fill(0),
+      skuCount: Array(n).fill(0),
+      fill: Array(n).fill(0),
+      isActive: Array(n).fill(1),
+      effectiveMax: Array(n).fill(null),
+    };
+  }, [model]);
   const rackOf = useMemo(() => {
     const m = new Map<string, string>();
     if (model)
@@ -57,7 +70,9 @@ export default function TwinPreview(p: {
   return (
     <TwinView
       model={model}
-      occupancy={null}
+      occupancy={occupancy}
+      colorMode="occupancy"
+      cameraPreset="iso"
       highlight={highlight}
       flyOnHighlight={false}
       labels={false}

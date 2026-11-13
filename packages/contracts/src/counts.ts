@@ -31,6 +31,7 @@ export const CountTask = z
     }),
   })
   .meta({ id: 'CountTask' });
+export type CountTask = z.infer<typeof CountTask>;
 
 export const CountCreate = z
   .object({
@@ -61,6 +62,7 @@ export const CountLine = z
     needsReview: z.boolean(),
   })
   .meta({ id: 'CountLine' });
+export type CountLine = z.infer<typeof CountLine>;
 export const CountLinesQuery = ListQuery.extend({
   location: Id.optional(),
   needsReview: z.enum(['true', 'false']).optional(),

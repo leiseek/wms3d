@@ -56,6 +56,24 @@ export default defineConfig({
               },
             },
           },
+          {
+            name: 'ui-m5',
+            testDir: './tests/ui',
+            testMatch: /m5\..*spec\.ts/,
+            use: {
+              locale: 'zh-CN',
+              timezoneId: 'America/Los_Angeles',
+              launchOptions: {
+                executablePath: chrome,
+                args: [
+                  '--ignore-gpu-blocklist',
+                  '--enable-unsafe-swiftshader',
+                  '--use-angle=swiftshader',
+                  '--enable-webgl',
+                ],
+              },
+            },
+          },
         ]
       : []),
   ],

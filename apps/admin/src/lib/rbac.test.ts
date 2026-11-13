@@ -11,6 +11,7 @@ describe('权限菜单', () => {
     expect(keys('VIEWER')).toEqual([
       'dashboard',
       'stock',
+      'alerts',
       'movements',
       'txns',
       'twin',
@@ -65,6 +66,8 @@ describe('能力与契约 roles 一致', () => {
       rackTypes: 'listRackTypes',
       layout: 'listLayoutVersions',
       stock: 'listBalances',
+      alerts: 'lowStock',
+      counts: 'listCounts',
       movements: 'listMovements',
       skus: 'listSkus',
     };

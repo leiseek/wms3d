@@ -14,6 +14,7 @@ import {
 import { BoxMerger, unitBinGeometry, unitBoxGeometry, unitFarBoxGeometry } from './geometry3d.ts';
 import { distanceToBox, initialLod, nextLod, type Lod } from './lod.ts';
 import { boundsOf, buildSceneData, type Box3Data, type SceneData } from './model.ts';
+import { ISO_DIR, TOP_DIR, fitCameraToBox, inflateBox, type Vec3 } from './camera.ts';
 import { pick, type PickResult } from './pick.ts';
 import { CompactSlots, EMPTY, HIDDEN, OPAQUE, type SlotMesh } from './slots.ts';
 import { buildTwinIndex, indicesOf, type TwinIndex } from './twinIndex.ts';
@@ -133,6 +134,8 @@ export class TwinEngine {
   private down: { x: number; y: number; t: number } | null = null;
   private lastPreset: CameraPreset = 'iso';
   private cameraPlaced = false;
+  /** 用户未手动旋转/缩放过：resize 时重新套用机位 */
+  private autoFit = true;
   private labelLayer: import('./labels.ts').LabelLayer | null = null;
 
   constructor(container: HTMLElement, opts: EngineOptions = {}) {
@@ -161,6 +164,7 @@ export class TwinEngine {
     this.controls.maxPolarAngle = Math.PI / 2 - 0.02;
     this.controls.touches = { ONE: THREE.TOUCH.PAN, TWO: THREE.TOUCH.DOLLY_ROTATE };
     this.controls.addEventListener('change', this.onControlsChange);
+    this.controls.addEventListener('start', this.onControlsStart);
     this.scene.add(new THREE.HemisphereLight(0xffffff, 0x5c6570, 0.55));
     const sun = new THREE.DirectionalLight(0xffffff, 2.25);
     sun.position.set(0.85, 1.5, 0.55);
@@ -271,34 +275,38 @@ export class TwinEngine {
 
   flyToIndices(indices: readonly number[], durMs = 700): void {
     if (!this.data) return;
-    const b = boundsOf(this.data, indices);
-    if (b) this.flyToBox(b, durMs);
+    const racks = new Set<number>();
+    const extra: number[] = [];
+    for (const k of indices) {
+      extra.push(k);
+      const ri = this.data.locRack[k]!;
+      if (ri >= 0) racks.add(ri);
+    }
+    for (const ri of racks) extra.push(...this.data.racks[ri]!.locs);
+    const b = boundsOf(this.data, extra);
+    if (b) this.flyToBox(inflateBox(b, 1.2), durMs);
   }
 
   setCameraPreset(p: CameraPreset, animate = true): void {
     this.lastPreset = p;
+    this.autoFit = true;
     if (!this.data) return;
-    const { min, max } = this.data.bounds;
-    const cx = (min[0] + max[0]) / 2;
-    const cz = (min[2] + max[2]) / 2;
-    const w = max[0] - min[0];
-    const d = max[2] - min[2];
-    const fov = THREE.MathUtils.degToRad(this.camera.fov);
-    const aspect = Math.max(this.camera.aspect, 0.3);
-    const fitH = (Math.max(d, w / aspect) / 2 / Math.tan(fov / 2)) * 1.08;
     let pos: THREE.Vector3;
     let target: THREE.Vector3;
-    if (p === 'top') {
-      pos = new THREE.Vector3(cx, fitH + 2, cz + 0.01);
-      target = new THREE.Vector3(cx, 0, cz);
-    } else if (p === 'iso') {
-      const r = fitH * 0.8;
-      pos = new THREE.Vector3(cx - r * 0.45, r * 0.62, cz + r * 0.75);
-      target = new THREE.Vector3(cx, 0, cz);
-    } else {
+    if (p === 'aisle') {
       const a = this.aisleView();
       pos = a.pos;
       target = a.target;
+    } else {
+      const fitted = fitCameraToBox(
+        this.data.bounds,
+        Math.max(this.camera.aspect, 0.05),
+        this.camera.fov,
+        p === 'top' ? TOP_DIR : ISO_DIR,
+        1.22,
+      );
+      pos = new THREE.Vector3(...fitted.pos);
+      target = new THREE.Vector3(...fitted.target);
     }
     if (animate) this.flyTo(pos, target, 700);
     else {
@@ -510,8 +518,8 @@ export class TwinEngine {
     const emptyMat = new THREE.MeshBasicMaterial({
       color: 0xffffff,
       transparent: true,
-      opacity: 0.55,
-      depthWrite: false,
+      opacity: 0.92,
+      depthWrite: true,
     });
     const frameMat = new THREE.MeshLambertMaterial({ color: new THREE.Color(...COLORS.frame) });
     const sphere = new THREE.Sphere();
@@ -878,31 +886,30 @@ export class TwinEngine {
   }
 
   private flyToBox(b: Box3Data, durMs: number): void {
-    const center = new THREE.Vector3(
-      (b.min[0] + b.max[0]) / 2,
-      (b.min[1] + b.max[1]) / 2,
-      (b.min[2] + b.max[2]) / 2,
+    this.autoFit = false;
+    let dir: Vec3 = ISO_DIR;
+    const cur = this.camera.position.clone().sub(this.controls.target);
+    if (cur.lengthSq() > 1e-6) {
+      cur.normalize();
+      const elev = Math.asin(THREE.MathUtils.clamp(cur.y, -1, 1));
+      const e = THREE.MathUtils.clamp(
+        elev,
+        THREE.MathUtils.degToRad(28),
+        THREE.MathUtils.degToRad(60),
+      );
+      const horiz = new THREE.Vector3(cur.x, 0, cur.z);
+      if (horiz.lengthSq() < 1e-6) horiz.set(ISO_DIR[0], 0, ISO_DIR[2]);
+      horiz.normalize().multiplyScalar(Math.cos(e));
+      dir = [horiz.x, Math.sin(e), horiz.z];
+    }
+    const fitted = fitCameraToBox(
+      b,
+      Math.max(this.camera.aspect, 0.05),
+      this.camera.fov,
+      dir,
+      1.35,
     );
-    const size = Math.max(b.max[0] - b.min[0], b.max[1] - b.min[1], b.max[2] - b.min[2]);
-    const fov = THREE.MathUtils.degToRad(this.camera.fov);
-    // 竖屏（手机）按水平视角适配
-    const halfTan = Math.tan(fov / 2) * Math.min(1, this.camera.aspect);
-    const dist = Math.max(6, (size / 2 / halfTan) * 1.25);
-    const dir = this.camera.position.clone().sub(this.controls.target);
-    if (dir.lengthSq() < 1e-6) dir.set(0, 1, 1);
-    dir.normalize();
-    // 保持方位角，仰角限制在 25°–70°
-    const elev = Math.asin(THREE.MathUtils.clamp(dir.y, -1, 1));
-    const e = THREE.MathUtils.clamp(
-      elev,
-      THREE.MathUtils.degToRad(25),
-      THREE.MathUtils.degToRad(70),
-    );
-    const horiz = new THREE.Vector3(dir.x, 0, dir.z);
-    if (horiz.lengthSq() < 1e-6) horiz.set(0, 0, 1);
-    horiz.normalize().multiplyScalar(Math.cos(e));
-    const nd = new THREE.Vector3(horiz.x, Math.sin(e), horiz.z).normalize();
-    this.flyTo(center.clone().addScaledVector(nd, dist), center, durMs);
+    this.flyTo(new THREE.Vector3(...fitted.pos), new THREE.Vector3(...fitted.target), durMs);
   }
 
   private flyTo(pos: THREE.Vector3, target: THREE.Vector3, durMs: number): void {
@@ -993,13 +1000,19 @@ export class TwinEngine {
     this.renderer.setSize(w, h, false);
     this.camera.aspect = w / h;
     this.camera.updateProjectionMatrix();
-    this.requestRender();
+    if (this.autoFit && this.cameraPlaced && this.data)
+      this.setCameraPreset(this.lastPreset, false);
+    else this.requestRender();
   }
 
   // ---------------- 事件 ----------------
 
   private onControlsChange = (): void => {
     this.requestRender();
+  };
+
+  private onControlsStart = (): void => {
+    this.autoFit = false;
   };
 
   private onVisibility = (): void => {

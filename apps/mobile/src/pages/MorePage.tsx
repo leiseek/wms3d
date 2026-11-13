@@ -6,8 +6,9 @@ import { saveServerConfig } from '../app/config.ts';
 import { isNative, Scanner, type HidStatus } from '../native/bridge.ts';
 import { useScanHandler } from '../app/hooks.ts';
 import { CameraView } from './CameraView.tsx';
+import { CountPage } from './CountPage.tsx';
 
-type Sub = 'menu' | 'scanner' | 'diag' | 'exceptions';
+type Sub = 'menu' | 'scanner' | 'diag' | 'exceptions' | 'count';
 
 export function MorePage(props: { active: boolean }) {
   const [sub, setSub] = useState<Sub>('menu');
@@ -21,9 +22,19 @@ export function MorePage(props: { active: boolean }) {
     return <ScannerTestPage active={props.active} onBack={() => setSub('menu')} />;
   if (sub === 'diag') return <DiagnosticsPage onBack={() => setSub('menu')} />;
   if (sub === 'exceptions') return <ExceptionsPage onBack={() => setSub('menu')} />;
+  if (sub === 'count') return <CountPage active={props.active} onBack={() => setSub('menu')} />;
   return (
     <div className="page-pad" data-testid="more-page">
       <div className="menu">
+        <BigButton testId="menu-count" onClick={() => setSub('count')}>
+          盘点
+        </BigButton>
+        <BigButton
+          testId="menu-label-check"
+          onClick={() => useUi.setState({ tab: 'twin', labelCheck: true })}
+        >
+          标签核对
+        </BigButton>
         <BigButton testId="menu-exceptions" onClick={() => setSub('exceptions')}>
           异常单{rejectedCount ? `（${rejectedCount}）` : ''}
         </BigButton>

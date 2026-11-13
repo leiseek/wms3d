@@ -57,8 +57,11 @@ test('补打队列：申请 → 一键打印 → 标记完成', async ({ page })
 test('标签回读核对：生成后可见通过/失败', async ({ page }) => {
   await loginToDashboard(page, 'manager');
   await page.getByTestId('nav-labels').click();
+  await expect(page.getByRole('cell', { name: 'A01-01-A01', exact: true })).toBeVisible();
   await page.getByTestId('label-select-page').click();
+  await expect(page.getByText(/已选 [1-9]/)).toBeVisible();
   await page.getByTestId('label-templates').getByText('loc-100x50').click();
+  await expect(page.getByTestId('label-preview')).toBeEnabled();
   await page.getByTestId('label-preview').click();
   await expect(page.getByTestId('label-pdf')).toBeVisible();
   const req = page.waitForRequest((r) => r.url().includes('/labels/verify'));

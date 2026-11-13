@@ -32,7 +32,7 @@ export default function DashboardPage() {
       {dash.error && (
         <Alert type="error" title={errorMessage(dash.error)} style={{ marginBottom: 16 }} />
       )}
-      <Row gutter={[16, 16]}>
+      <Row gutter={[16, 16]} data-testid="dashboard-kpis">
         <Col xs={12} md={6}>
           <Card loading={dash.isLoading}>
             <Statistic title="今日入库（单）" value={d?.today.inbound ?? 0} />
@@ -89,9 +89,14 @@ export default function DashboardPage() {
             </Typography.Paragraph>
           </Card>
         </Col>
-        <Col xs={24} md={8}>
+        <Col xs={24} md={8} data-testid="dashboard-low-stock">
           <Card
             title={`低库存 Top10（共 ${d?.lowStockCount ?? 0}）`}
+            extra={
+              <Link to="/alerts" data-testid="dashboard-alerts-link">
+                全部预警
+              </Link>
+            }
             loading={low.isLoading}
             styles={{ body: { padding: 0 } }}
           >
