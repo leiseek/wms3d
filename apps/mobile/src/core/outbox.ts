@@ -91,7 +91,10 @@ export class Outbox {
   private readonly api: () => ApiClient;
   private readonly now: () => number;
   private readonly events: OutboxEvents;
-  private readonly opts: { autoSchedule?: boolean };
+  private readonly opts: {
+    autoSchedule?: boolean;
+    onBeforeSend?: (e: OutboxEntry) => Promise<void>;
+  };
 
   constructor(
     store: OutboxStore,

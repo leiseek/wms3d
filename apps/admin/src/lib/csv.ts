@@ -171,8 +171,14 @@ export function previewSkuCsv(text: string, maxRows = 50_000): SkuCsvPreview {
 export function mergeRowErrors(local: RowError[], server: Omit<RowError, 'source'>[]): RowError[] {
   const seen = new Set<string>();
   const out: RowError[] = [];
-  for (const e of [...local, ...server.map((s) => ({ ...s, source: 'server' as const }))]) {
-    const k = `${e.row}|${e.column ?? ''}|${e.code}|${e.message}`;
+  // 服务端/mock 行号含表头（表头=1，首行数据=2）；前端预检是数据行（首行数据=1）。
+  const adj = server.map((s) => ({
+    ...s,
+    source: 'server' as const,
+    row: s.row > 0 ? s.row - 1 : s.row,
+  }));
+  for (const e of [...local, ...adj]) {
+    const k = `${e.row}|${e.column ?? ''}|${e.code}`;
     if (seen.has(k)) continue;
     seen.add(k);
     out.push(e);
