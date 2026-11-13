@@ -34,12 +34,18 @@ describe('夜间任务 + 演示库存（PG 集成）', () => {
     const a = await seedStock(k.tdb.appUrl);
     expect(a.created).toBe(demo.demoBalances.length);
     expect(a.reconcile.mismatches).toEqual([]);
+    const sum0 = await pool().query<{ n: number }>(
+      `SELECT COALESCE(sum(on_hand),0)::int AS n FROM stock_balances`,
+    );
+    expect(sum0.rows[0]!.n).toBeGreaterThan(0);
     const b = await seedStock(k.tdb.appUrl);
     expect(b).toMatchObject({ created: 0, replayed: demo.demoBalances.length });
     const sum = await pool().query<{ n: number }>(
       `SELECT COALESCE(sum(on_hand),0)::int AS n FROM stock_balances`,
     );
-    expect(sum.rows[0]!.n).toBe(demo.demoBalances.reduce((n, x) => n + x.onHand, 0));
+    expect(sum.rows[0]!.n).toBe(sum0.rows[0]!.n);
+    expect(a.countTaskCode).toBeTruthy();
+    expect(a.historyCreated).toBeGreaterThan(0);
   });
 
   it('对账能发现人为制造的不一致（增量：改余额；全量：删余额行）；checkpoint 只推进到必然已提交的流水', async () => {

@@ -5,7 +5,7 @@ export const WH1 = demo.demoWarehouse.id;
 export const WH2 = demo.demoWarehouse2.id;
 export const SKU1 = demo.demoSkus[0]!;
 export const SKU2 = demo.demoSkus[1]!;
-/** 选一个初始无货的存储仓位（demoBalances 只覆盖 i%3==0 的仓位） */
+/** 选一个初始无货的存储仓位（与 demoBalances 互补，约 35% 货架仓位） */
 const stocked = new Set(demo.demoBalances.map((b) => b.locationId));
 export const EMPTY_LOCS = demo.demoLocations.filter((l) => l.rackKey && !stocked.has(l.id));
 export const demoLayout = demo.demoLayout;

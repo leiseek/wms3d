@@ -299,11 +299,11 @@ export class TwinEngine {
       target = a.target;
     } else {
       const fitted = fitCameraToBox(
-        this.data.bounds,
+        this.overviewBox(),
         Math.max(this.camera.aspect, 0.05),
         this.camera.fov,
         p === 'top' ? TOP_DIR : ISO_DIR,
-        1.22,
+        1.08,
       );
       pos = new THREE.Vector3(...fitted.pos);
       target = new THREE.Vector3(...fitted.target);
@@ -590,10 +590,11 @@ export class TwinEngine {
     const hl = new THREE.InstancedMesh(
       unitBoxGeometry(),
       new THREE.MeshBasicMaterial({
-        color: 0xff4d4f,
+        color: 0xff2d2f,
         transparent: true,
-        opacity: 0.85,
-        depthTest: true,
+        opacity: 1,
+        depthTest: false,
+        depthWrite: false,
       }),
       HIGHLIGHT_MAX,
     );
@@ -609,9 +610,10 @@ export class TwinEngine {
     const markers = new THREE.InstancedMesh(
       beam,
       new THREE.MeshBasicMaterial({
-        color: 0xff4d4f,
+        color: 0xff2d2f,
         transparent: true,
-        opacity: 0.55,
+        opacity: 0.85,
+        depthTest: false,
         depthWrite: false,
       }),
       MARKER_MAX,
@@ -664,10 +666,13 @@ export class TwinEngine {
       const local = data.locLocal[k]!;
       const st = binStyle(this.mode, occ, k, this.zoneColorOf(k));
       let color = st.color;
-      if (dim && !this.highlight.has(k)) color = dimColor(color);
+      let mesh: SlotMesh = st.mesh;
+      if (this.highlight.has(k)) {
+        color = COLORS.highlight;
+        if (mesh === EMPTY) mesh = OPAQUE;
+      } else if (dim) color = dimColor(color, 0.82);
       const lvl = data.locLevel[k]!;
-      const target: SlotMesh =
-        this.maxLevel !== undefined && lvl > this.maxLevel ? HIDDEN : st.mesh;
+      const target: SlotMesh = this.maxLevel !== undefined && lvl > this.maxLevel ? HIDDEN : mesh;
       let colorWritten = false;
       ch.slots.assign(local, target, (w) => {
         const kk = data.chunks[ci]!.locs[w.local]!;
@@ -788,7 +793,7 @@ export class TwinEngine {
       if (data.locChunk[k]! < 0) continue;
       if (this.maxLevel !== undefined && data.locLevel[k]! > this.maxLevel) continue;
       m.fromArray(data.matrices, 16 * k);
-      m.scale(new THREE.Vector3(1.12, 1.12, 1.12));
+      m.scale(new THREE.Vector3(1.22, 1.28, 1.22));
       m.toArray(tmp);
       (hl.instanceMatrix.array as Float32Array).set(tmp, 16 * n++);
       if (nm < MARKER_MAX) {
@@ -847,6 +852,14 @@ export class TwinEngine {
   }
 
   // ---------------- 相机 ----------------
+
+  /** 总览：XZ 仍是整仓范围，Y 收到货架高度 + 余量，避免 10m 净空把模型压得很小。 */
+  private overviewBox(): { min: [number, number, number]; max: [number, number, number] } {
+    const b = this.data!.bounds;
+    const rackH = this.data!.racks.reduce((h, r) => Math.max(h, r.heightM), 0);
+    const yMax = Math.max(2, Math.min(b.max[1], (rackH || 2) + 1.2));
+    return { min: b.min, max: [b.max[0], yMax, b.max[2]] };
+  }
 
   private aisleView(): { pos: THREE.Vector3; target: THREE.Vector3 } {
     const data = this.data!;
@@ -953,7 +966,7 @@ export class TwinEngine {
     this.updateLods();
     if (this.hl && this.hl.count > 0) {
       const mat = this.hl.material as THREE.MeshBasicMaterial;
-      mat.opacity = now < this.pulseUntil ? 0.55 + 0.35 * Math.abs(Math.sin(now / 250)) : 0.85;
+      mat.opacity = now < this.pulseUntil ? 0.7 + 0.3 * Math.abs(Math.sin(now / 180)) : 0.95;
     }
     this.labelLayer?.update(this);
     this.renderer.render(this.scene, this.camera);

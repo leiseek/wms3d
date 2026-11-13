@@ -1,6 +1,6 @@
 {
   "name": "@wms3d/contracts",
-  "version": "0.0.0",
+  "version": "0.1.0",
   "private": true,
   "type": "module",
   "description": "Zod contracts — contract-v1 (frozen in M0b)",

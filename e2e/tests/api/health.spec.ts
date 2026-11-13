@@ -28,5 +28,8 @@ test.describe('运维端点', () => {
     const r = await call('GET', '/health');
     expect(r.headers.get('x-frame-options')).toBe('DENY');
     expect(r.headers.get('x-content-type-options')).toBe('nosniff');
+    expect(r.headers.get('referrer-policy')).toBe('no-referrer');
+    expect(r.headers.get('content-security-policy') ?? '').toContain("default-src 'none'");
+    expect(r.headers.get('permissions-policy') ?? '').toContain('camera=()');
   });
 });

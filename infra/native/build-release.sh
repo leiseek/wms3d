@@ -55,4 +55,10 @@ cp "$ROOT"/scripts/{backup.sh,backup-lib.sh,restore.sh,reconcile.sql,ws-config.s
 cat > "$OUT/VERSION.json" <<JSON
 {"commit":"$(git -C "$ROOT" rev-parse HEAD 2>/dev/null || echo unknown)","builtAt":"$(date -u +%FT%TZ)","node":"$(node -v)","packages":$(printf '%s\n' "${PKGS[@]}" | node -e 'console.log(JSON.stringify(require("fs").readFileSync(0,"utf8").trim().split("\n")))')}
 JSON
+# 随包附带 systemd 部署说明
+if [ -f "$ROOT/docs/delivery/DEPLOY.md" ]; then
+  cp "$ROOT/docs/delivery/DEPLOY.md" "$OUT/DEPLOY.md"
+elif [ -f "$ROOT/infra/RUNBOOK.md" ]; then
+  cp "$ROOT/infra/RUNBOOK.md" "$OUT/DEPLOY.md"
+fi
 echo "发布目录：$OUT（app $(du -sh "$OUT/app" | cut -f1)$( [ "$ADMIN" = 1 ] && echo "，admin $(du -sh "$OUT/admin" | cut -f1)")）"

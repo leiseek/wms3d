@@ -278,7 +278,7 @@ class ScannerPlugin : Plugin() {
 
     private fun saveWhitelist() {
         val p = context.getSharedPreferences("wms3d.hid", Context.MODE_PRIVATE)
-        p.edit().putStringSet("whitelist", HidRouter.policy.list().map { encode(it) }.toSet()).apply()
+        p.edit().putStringSet("whitelist", HidRouter.policy.list().map { encode(it) }.toSet()).commit()
     }
 
     private fun encode(d: InputDeviceInfo) = listOf(d.descriptor, d.name.replace('\t', ' '), d.vendorId, d.productId).joinToString("\t")

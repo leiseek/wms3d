@@ -266,7 +266,8 @@ describe('mock 场景 × 契约校验（所有 JSON 响应用 contracts schema �
   });
 
   it('库存交易、幂等、冲正、查询', async () => {
-    const empty = demo.demoLocations.find((l, i) => l.rackKey && i % 3 === 1)!;
+    const stockedIds = new Set(demo.demoBalances.map((b) => b.locationId));
+    const empty = demo.demoLocations.find((l) => l.rackKey && !stockedIds.has(l.id))!;
     const sku = demo.demoSkus[0]!;
     const key = newIdempotencyKey();
     const cmd = {
@@ -303,7 +304,9 @@ describe('mock 场景 × 契约校验（所有 JSON 响应用 contracts schema �
       body: { ...cmd, type: 'OUTBOUND', lines: [{ ...cmd.lines[0]!, qty: 3 }] },
       idempotencyKey: newIdempotencyKey(),
     });
-    const to = demo.demoLocations.find((l, i) => l.rackKey && i % 3 === 2)!;
+    const to = demo.demoLocations.find(
+      (l) => l.rackKey && !stockedIds.has(l.id) && l.id !== empty.id,
+    )!;
     await op.r.postTransaction({
       body: {
         type: 'TRANSFER',

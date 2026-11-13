@@ -1,6 +1,6 @@
 {
   "name": "@wms3d/twin3d",
-  "version": "0.0.0",
+  "version": "0.1.0",
   "private": true,
   "type": "module",
   "description": "three.js/R3F digital-twin scene (WS-D2)",
