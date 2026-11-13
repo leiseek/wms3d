@@ -146,8 +146,8 @@ export const LayoutDiff = z
     ),
     deactivated: z.array(z.object({ locationId: Id, code: StructCode, onHand: z.number().int() })),
     reused: z
-      .array(z.object({ locationId: Id, code: StructCode }))
-      .describe('第二轮按 code 复用的停用仓位（B-N3）'),
+      .array(z.object({ locationId: Id, code: StructCode, onHand: z.number().int() }))
+      .describe('第二轮按 code 复用的仓位（有库存时发布需 confirmRecode）'),
   })
   .meta({ id: 'LayoutDiff' });
 export type LayoutDiff = z.infer<typeof LayoutDiff>;

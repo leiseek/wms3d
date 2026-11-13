@@ -1497,6 +1497,32 @@ export const handlers: Handlers = {
       { 'content-disposition': 'attachment; filename="movements.csv"' },
     );
   },
+  exportBalances: (c) => {
+    const rows = ['location,sku,name,lot_no,on_hand,updated_at'];
+    const q = c.query;
+    for (const b of [...c.store.balances.values()].filter(
+      (x) => x.warehouseId === c.warehouseId && x.onHand > 0,
+    )) {
+      if (q.skuId && b.skuId !== q.skuId) continue;
+      if (q.locationId && b.locationId !== q.locationId) continue;
+      const l = c.store.locations.get(b.locationId)!;
+      const k = c.store.skus.get(b.skuId)!;
+      if (q.zone) {
+        const z = c.store.zones.find((z) => z.id === l.zoneId);
+        if (!z || z.code !== q.zone) continue;
+      }
+      rows.push([l.code, k.code, k.name, b.lotNo, b.onHand, b.updatedAt].map(csvCell).join(','));
+    }
+    return raw(
+      200,
+      {
+        kind: 'text',
+        value: '\uFEFF' + rows.join('\r\n') + '\r\n',
+        contentType: 'text/csv; charset=utf-8',
+      },
+      { 'content-disposition': 'attachment; filename="balances.csv"' },
+    );
+  },
   locate: (c) => {
     const s = c.store;
     const w = wh(s, c.warehouseId);
@@ -1827,6 +1853,30 @@ export const handlers: Handlers = {
       { kind: 'text', value: MOCK_PDF, contentType: 'application/pdf' },
       { ...headers, 'content-disposition': 'inline; filename="labels.pdf"' },
     );
+  },
+  verifyLabels: (c) => {
+    if (c.body.format === 'ZPL')
+      throw new MockError('VALIDATION_FAILED', '核对仅支持 PDF', {
+        errors: [{ path: 'format', message: 'PDF' }],
+      });
+    const ids = c.body.ids ?? [];
+    const items = ids.map((id: string) => {
+      const loc = c.store.locations.get(id);
+      const rack = c.store.racks.find((r) => r.id === id);
+      const sku = c.store.skus.get(id);
+      const code = loc?.code ?? rack?.code ?? sku?.code ?? id;
+      const payload =
+        c.body.kind === 'SKU' || !c.body.warehouseId
+          ? code
+          : `${[...c.store.warehouses.values()].find((w) => w.id === c.warehouseId)?.code ?? 'WH'}.${code}`;
+      return { expected: payload, actual: payload, pass: true, code };
+    });
+    return {
+      passed: items.length,
+      failed: 0,
+      items,
+      decoded: items.map((i) => i.expected),
+    };
   },
   calibrationPdf: () => raw(200, { kind: 'text', value: MOCK_PDF, contentType: 'application/pdf' }),
   listReprints: (c) =>

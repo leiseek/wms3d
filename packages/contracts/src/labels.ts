@@ -87,3 +87,22 @@ export const ReprintPatch = z
   .object({ status: z.enum(['DONE', 'CANCELLED']) })
   .meta({ id: 'ReprintPatch' });
 export const ReprintQuery = ListQuery.extend({ warehouseId: Id, status: ReprintStatus.optional() });
+
+export const LabelVerifyHit = z
+  .object({
+    expected: z.string(),
+    actual: z.string().nullable(),
+    pass: z.boolean(),
+    code: z.string().optional(),
+  })
+  .meta({ id: 'LabelVerifyHit' });
+export const LabelVerifyResult = z
+  .object({
+    passed: z.number().int(),
+    failed: z.number().int(),
+    items: z.array(LabelVerifyHit),
+    decoded: z.array(z.string()),
+  })
+  .meta({ id: 'LabelVerifyResult' });
+export type LabelVerifyHit = z.infer<typeof LabelVerifyHit>;
+export type LabelVerifyResult = z.infer<typeof LabelVerifyResult>;

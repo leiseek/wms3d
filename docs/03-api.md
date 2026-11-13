@@ -132,7 +132,7 @@ Fastify `preHandler` 统一解析并校验 `user_warehouses`（或 `all_warehous
 | POST | /inventory/transactions (Idempotency-Key) | INBOUND/OUTBOUND/TRANSFER/ADJUST |
 | POST | /inventory/transactions/:id/reverse (Idempotency-Key) | 冲正（02 §6.4） |
 | GET | /inventory/transactions, /:id | |
-| GET | /inventory/balances?warehouseId=&skuId=&locationId=&zone= | |
+| GET | /inventory/balances?warehouseId=&skuId=&locationId=&zone=  · /inventory/balances.csv | 余额与导出（MGR；CSV 去掉分页） |
 | GET | /inventory/movements?...  · /inventory/movements.csv | 台账与导出 |
 | GET | /inventory/locate?warehouseId=&q= | `{layoutVersion, items:[{locationId, code, skuId, qty}]}`——**只返回 locationId**，客户端用 TwinModel 的 `id→index` 映射（D16/M17） |
 | GET | /inventory/low-stock?warehouseId= | |
@@ -160,6 +160,7 @@ Fastify `preHandler` 统一解析并校验 `user_warehouses`（或 `all_warehous
 | 方法 | 路径 | 说明 |
 |---|---|---|
 | POST | /labels/render `{template, kind, warehouseId, ids[]|filter, format: PDF|ZPL, dpi, startCell?, offsetMm?, reprintRequestIds?}` | `application/pdf`；`format=ZPL` → `application/vnd.zebra.zpl; charset=utf-8`（实验性，A4 多联模板 400）；kind 必须在模板 `kinds` 内（RACK 只用 `rack-100x150`）；响应头 `X-Label-Count`、`X-Reprints-Done`。`warehouseId` 必填（SKU 标签也带当前仓库，contract-v1.2 WS-A1-2） |
+| POST | /labels/verify（body 同 render，仅 PDF） | MGR；zxing 回读与期望载荷核对，返回 `LabelVerifyResult` |
 | GET | /labels/templates · /labels/calibration.pdf?template= | 模板与校准页 |
 | GET/POST | /label-reprint-requests | 移动端提交补打请求 → PC 打印队列（M33） |
 | GET | /dashboard?warehouseId= | |

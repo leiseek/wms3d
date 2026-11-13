@@ -59,6 +59,16 @@
 - 根脚本 `verify:full`、`ci`、`e2e`、`seed:demo`、`backup:drill`；正式 CLI `apps/api` `admin:create`（ADMIN + 首登改密 + 同事务审计）；已删除 `scripts/create-admin.ts` shim，RUNBOOK 改为调用正式 CLI。
 - 文档：布局**发布仅 ADMIN**（05 补充；ws-b 简报笔误已更正）。`balances.csv` 排到 M4.5。
 
+## contract-v1.4.0 · 2026-11-13（PT）
+M4.5 联调（向后兼容增量）：
+- `GET /inventory/balances.csv`（query 同 `BalancesQuery` 去掉分页，roles = MGR，`text/csv`）。
+- `POST /labels/verify`（body 同 `LabelRenderRequest`，仅 PDF；roles = MGR）返回 `LabelVerifyResult`（zxing 回读 vs 期望载荷）。
+- `LayoutDiff.reused` 项增加 `onHand`；有库存的 reused 改码与 recode 一样需要 `confirmRecode`。
+- `CountSubmission.lines` 可带可选 `lotNo`（盘点覆盖全部批次）。
+- 占用图例档位：空 0% / <50% / 50–90% / >90% 满；等轴对比加强。
+- 迁移 `0002_occupancy_effective_max`：`v_location_occupancy.max_qty` 使用有效容量。
+- `CONTRACT_VERSION` 1.4.0。
+
 ## contract-v1.3.1 · 2026-11-13（PT）
 CR1 修复轮（0 P0；5 P1 均已修并配回归；部分廉价 P2）：
 - 登出 / 撤销仓库授权立即关闭该会话或仓库的 SSE，不再推送 `stock.changed`。

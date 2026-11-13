@@ -35,5 +35,5 @@ AuditLog: userName: z.string().nullable().optional()
 **Lead 决定（2026-11-13 PT，contract-v1.3）**
 - **WS-B-1 接受，已做**：①契约 `importSkus.summary` 写明 multipart 单文件字段 **`file`**（UTF-8 CSV，可带 BOM，≤ 5 万行，列同 export.csv），与 WS-A1 现有实现一致。②mock 会解析上传的 CSV：按 code 统计 created/updated，报告 REQUIRED / DUPLICATE / BARCODE_CONFLICT / FORMAT，`dryRun=false` 且无错误时真正写入 store；Fastify mock 也把 multipart 解析成 FormData（与 MSW 一致）。两种路径都有测试。
 - **WS-B-2 接受（向后兼容的新增可选字段）**：`Txn.performedByName/submittedByName`、`Movement.performedByName`、`AuditLog.userName`（`string | null`，可选）。mock 已填充。**真实 API 由 WS-A2 填充**（inventory 与 audit 查询 JOIN users.display_name）；填充前字段缺省，前端回退显示 id。
-- **WS-B-3 接受，排到 M4.5**：`GET /inventory/balances.csv` 由 WS-A2 实现时一起加入契约。现在加的话，路由会先以 501 存在，影响 A2 的 RBAC 矩阵。在此之前保留浏览器端导出。
+- **WS-B-3 接受，已在 M4.5 / contract-v1.4.0 落地**：`GET /inventory/balances.csv`（roles MGR）。
 - 布局发布权限：**仅 ADMIN**（契约 `publishLayout.roles`、08 §1）。ws-b.md 里曾写“MANAGER/ADMIN 可发布”，是 Lead 的笔误，已更正；05 已补权限说明。WS-B 现在按契约做是对的。

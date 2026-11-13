@@ -154,6 +154,9 @@ export class Outbox {
       mayBeAffected: false,
       canAutoRetry: false,
       label: i.label,
+      reverseKey: null,
+      reversalTxnId: null,
+      pendingReverse: false,
     };
     await this.save(e);
     this.kick();
@@ -187,14 +190,12 @@ export class Outbox {
       return 'cancelled';
     }
     if (e.status === 'DONE' && e.txnId) {
-      await this.api().r.reverseTransaction({
-        params: { id: e.txnId },
-        body: { note: '移动端撤销上一笔', clientCreatedAt: new Date(this.now()).toISOString() },
-        idempotencyKey: newIdempotencyKey(),
-      });
-      await this.save({ ...e, status: 'CANCELLED' });
+      const key = e.reverseKey ?? newIdempotencyKey();
+      await this.save({ ...e, reverseKey: key, pendingReverse: true });
+      await this.sendReverse({ ...e, reverseKey: key, pendingReverse: true });
       return 'reversed';
     }
+    if (e.status === 'CANCELLED' && (e.reversalTxnId || e.reverseKey)) return 'reversed';
     throw new Error(`当前状态 ${e.status} 不能撤销`);
   }
 
@@ -226,6 +227,9 @@ export class Outbox {
       waitingSince: null,
       mayBeAffected: false,
       canAutoRetry: false,
+      reverseKey: null,
+      reversalTxnId: null,
+      pendingReverse: false,
     };
     await this.save(ne);
     this.kick();
@@ -291,6 +295,9 @@ export class Outbox {
     this.running = true;
     let sent = 0;
     try {
+      for (const e of await this.store.list()) {
+        if (e.pendingReverse && e.txnId) await this.sendReverse(e);
+      }
       for (;;) {
         if (this.blockedReason || this.stopped) break;
         const now = this.now();
@@ -311,6 +318,47 @@ export class Outbox {
       this.running = false;
     }
     return sent;
+  }
+
+  private async sendReverse(e: OutboxEntry): Promise<void> {
+    if (!e.txnId) return;
+    const key = e.reverseKey ?? newIdempotencyKey();
+    if (!e.reverseKey) await this.save({ ...e, reverseKey: key, pendingReverse: true });
+    try {
+      const result = (await this.api().r.reverseTransaction({
+        params: { id: e.txnId },
+        body: { note: '移动端撤销上一笔', clientCreatedAt: new Date(this.now()).toISOString() },
+        idempotencyKey: key,
+      })) as { txn?: { id: string }; id?: string };
+      const reversalTxnId = result.txn?.id ?? result.id ?? e.reversalTxnId;
+      const next: OutboxEntry = {
+        ...e,
+        reverseKey: key,
+        pendingReverse: false,
+        reversalTxnId: reversalTxnId ?? null,
+        status: 'CANCELLED',
+        lastError: null,
+      };
+      await this.save(next);
+    } catch (err) {
+      if (err instanceof ApiError && err.code === 'TXN_ALREADY_REVERSED') {
+        await this.save({
+          ...e,
+          reverseKey: key,
+          pendingReverse: false,
+          status: 'CANCELLED',
+        });
+        return;
+      }
+      if (
+        err instanceof ApiError &&
+        (err.code === 'NETWORK' || err.status >= 500 || err.status === 429 || err.status === 0)
+      ) {
+        await this.save({ ...e, reverseKey: key, pendingReverse: true, lastError: toError(err) });
+        return;
+      }
+      throw err;
+    }
   }
 
   private async sendOne(e0: OutboxEntry): Promise<Outcome['kind'] | 'skipped'> {

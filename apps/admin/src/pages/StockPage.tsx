@@ -25,8 +25,7 @@ import {
 } from '../components/common';
 import { errorMessage } from '../lib/errors';
 import { highlightIds, summarizeBySku } from '../lib/stock';
-import { toCsv } from '../lib/csv';
-import { downloadText } from '../lib/download';
+import { downloadBlob } from '../lib/download';
 import { LocateDrawer } from '../twin/LocateDrawer';
 
 interface LocateState {
@@ -268,16 +267,9 @@ function AllBalances({
   const exportAll = async () => {
     setExporting(true);
     try {
-      const rows: unknown[][] = [['location', 'sku', 'name', 'lot', 'on_hand', 'updated_at']];
-      let cursor: string | undefined;
-      for (let i = 0; i < 200; i++) {
-        const r = await api.r.listBalances({ query: { warehouseId, zone, limit: 500, cursor } });
-        for (const b of r.items)
-          rows.push([b.locationCode, b.skuCode, b.skuName, b.lotNo, b.onHand, b.updatedAt]);
-        if (!r.nextCursor) break;
-        cursor = r.nextCursor;
-      }
-      downloadText(toCsv(rows), `balances-${zone ?? 'all'}.csv`);
+      const res = await api.r.exportBalances({ query: { warehouseId, zone, limit: 500 } });
+      const blob = await res.blob();
+      downloadBlob(blob, `balances-${zone ?? 'all'}.csv`);
     } catch (e) {
       notify(e);
     } finally {

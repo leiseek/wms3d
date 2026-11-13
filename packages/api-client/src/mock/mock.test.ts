@@ -352,6 +352,9 @@ describe('mock 场景 × 契约校验（所有 JSON 响应用 contracts schema �
     expect(await (await admin.r.exportMovements({ query: { warehouseId: WH1 } })).text()).toMatch(
       /txn_type/,
     );
+    expect(await (await admin.r.exportBalances({ query: { warehouseId: WH1 } })).text()).toMatch(
+      /on_hand/,
+    );
     expect(
       (await op.r.locate({ query: { warehouseId: WH1, q: sku.code } })).items.length,
     ).toBeGreaterThan(0);
@@ -404,6 +407,11 @@ describe('mock 场景 × 契约校验（所有 JSON 响应用 contracts schema �
     });
     expect(pdf.headers.get('content-type')).toMatch(/pdf/);
     expect(pdf.headers.get('x-label-count')).toBe('1');
+    const verified = await admin.r.verifyLabels({
+      body: { template: 'loc-100x50', kind: 'LOCATION', warehouseId: WH1, ids: [loc.id] },
+    });
+    expect(verified.failed).toBe(0);
+    expect(verified.passed).toBe(1);
     // v1.2（WS-A1-2/3）：ZPL 可选输出；A4 + ZPL → 400；RACK 只能用 rack-100x150
     const zpl = await admin.r.renderLabels({
       body: {

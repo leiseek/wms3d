@@ -66,13 +66,21 @@ export const CountLinesQuery = ListQuery.extend({
   needsReview: z.enum(['true', 'false']).optional(),
 });
 
-/** 按仓位整体提交（02 §8 step 2）：未列出的已有 SKU 计 0；同 (task, location) 再次提交整体覆盖。 */
+/** 按仓位整体提交（02 §8 step 2）：未列出的已有 (sku, lot) 计 0；同 (task, location) 再次提交整体覆盖。 */
 export const CountSubmission = z
   .object({
     submissionId: Id.describe('客户端幂等键（审计用）'),
     locationId: Id,
     clientCountedAt: Timestamp,
-    lines: z.array(z.object({ skuId: Id, countedQty: z.number().int().nonnegative() })).max(500),
+    lines: z
+      .array(
+        z.object({
+          skuId: Id,
+          countedQty: z.number().int().nonnegative(),
+          lotNo: z.string().optional(),
+        }),
+      )
+      .max(500),
   })
   .meta({ id: 'CountSubmission' });
 export const CountSubmissionResult = z

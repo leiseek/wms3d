@@ -12,12 +12,12 @@ export function hexToRgb(hex: string): RGB {
 }
 
 export const PALETTE = {
-  empty: '#D9D9D9',
+  empty: '#8A9098',
   neutral: '#8FA3B8',
   inactive: '#7A1F1F',
-  fillLow: '#52C41A',
-  fillMid: '#FADB14',
-  fillHigh: '#FA8C16',
+  fillLow: '#0B9A3E',
+  fillMid: '#E8A200',
+  fillHigh: '#D4380D',
   sku1: '#1677FF',
   sku2: '#9254DE',
   dim: '#BFBFBF',
@@ -35,12 +35,12 @@ function lerp3(a: RGB, b: RGB, t: number): RGB {
   return [a[0] + (b[0] - a[0]) * t, a[1] + (b[1] - a[1]) * t, a[2] + (b[2] - a[2]) * t];
 }
 
-/** fill ∈ [0,1] → 绿→黄→橙（02 §4 / 06 §4）。 */
+/** fill ∈ [0,1] → 离散档：<50% 绿 / 50–90% 橙黄 / >90% 红（M4.5，提高等轴对比）。 */
 export function fillColor(fill: number): RGB {
   const f = Math.max(0, Math.min(1, fill));
-  return f <= 0.5
-    ? lerp3(C.fillLow, C.fillMid, f / 0.5)
-    : lerp3(C.fillMid, C.fillHigh, (f - 0.5) / 0.5);
+  if (f < 0.5) return C.fillLow;
+  if (f <= 0.9) return C.fillMid;
+  return C.fillHigh;
 }
 
 export interface BinStyle {
@@ -84,10 +84,10 @@ export function legendFor(mode: ColorMode): LegendItem[] {
   switch (mode) {
     case 'occupancy':
       return [
-        { color: PALETTE.empty, label: '空' },
-        { color: PALETTE.fillLow, label: '低（≤50%）' },
-        { color: PALETTE.fillMid, label: '中（50%）' },
-        { color: PALETTE.fillHigh, label: '满' },
+        { color: PALETTE.empty, label: '空 0%' },
+        { color: PALETTE.fillLow, label: '<50%' },
+        { color: PALETTE.fillMid, label: '50–90%' },
+        { color: PALETTE.fillHigh, label: '>90% 满' },
         { color: PALETTE.inactive, label: '停用' },
       ];
     case 'skuCount':

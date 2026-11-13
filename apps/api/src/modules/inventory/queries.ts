@@ -260,6 +260,43 @@ export function movementsCsvStream(
   return Readable.from(gen());
 }
 
+const BAL_CSV_HEADER = ['location', 'sku', 'name', 'lot_no', 'on_hand', 'updated_at'];
+
+/** 余额 CSV：按 (location_code, sku_code, lot_no) 排序流式输出。 */
+export function balancesCsvStream(
+  pool: pg.Pool,
+  wh: string,
+  query: Omit<Q<typeof BalancesQuery>, 'limit' | 'cursor'>,
+  batch = 2000,
+): Readable {
+  async function* gen() {
+    yield '\uFEFF' + BAL_CSV_HEADER.join(',') + '\r\n';
+    let after: { l: string; s: string; o: string } | null = null;
+    for (;;) {
+      const page = await listBalances(pool, wh, {
+        ...query,
+        warehouseId: wh,
+        limit: batch,
+        cursor: after ? encodeCursor(after) : undefined,
+      });
+      if (!page.items.length) return;
+      yield (
+        page.items
+          .map((b) =>
+            [b.locationCode, b.skuCode, b.skuName, b.lotNo, b.onHand, b.updatedAt]
+              .map(csvCell)
+              .join(','),
+          )
+          .join('\r\n') + '\r\n'
+      );
+      if (!page.nextCursor) return;
+      const last = page.items[page.items.length - 1]!;
+      after = { l: last.locationCode, s: last.skuCode, o: last.lotNo };
+    }
+  }
+  return Readable.from(gen());
+}
+
 /** SKU 定位：编码/条码精确、名称包含；只返回 locationId（客户端用 TwinModel 映射，D16）。 */
 export async function locate(
   q: Queryable,

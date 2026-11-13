@@ -69,15 +69,18 @@ export function createOccupancySync(o: OccupancySyncOptions): OccupancySync {
       pending = true;
       return;
     }
-    const v = o.getLayoutVersion();
-    if (v == null) return;
+    const requested = o.getLayoutVersion();
+    if (requested == null) return;
     inFlight = true;
     pending = false;
     lastFetch = now();
     try {
-      const occ = await o.fetchOccupancy(v);
+      const occ = await o.fetchOccupancy(requested);
       if (!disposed && occ) {
-        if (occ.layoutVersion !== o.getLayoutVersion()) o.reloadTwin('version-mismatch');
+        const current = o.getLayoutVersion();
+        // 拉取期间版本已变（例如 reloadTwin 已发生）：丢弃过期结果，避免二次 reload
+        if (current !== requested) return;
+        if (occ.layoutVersion !== current) o.reloadTwin('version-mismatch');
         else o.onOccupancy(occ);
       }
     } catch (e) {

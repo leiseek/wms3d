@@ -153,6 +153,7 @@ export async function publishLayout(pool: pg.Pool, inp: PublishInput): Promise<P
       const oh = new Map(fresh.rows.map((x) => [x.id, x.on_hand]));
       for (const x of plan.diff.deactivated) x.onHand = oh.get(x.locationId) ?? 0;
       for (const x of plan.diff.recoded) x.onHand = oh.get(x.locationId) ?? 0;
+      for (const x of plan.diff.reused) x.onHand = oh.get(x.locationId) ?? 0;
     }
     const withStock = plan.diff.deactivated.filter((x) => x.onHand > 0);
     if (withStock.length)
@@ -160,12 +161,13 @@ export async function publishLayout(pool: pg.Pool, inp: PublishInput): Promise<P
         context: { locations: withStock },
       });
     const recodeStock = plan.diff.recoded.filter((x) => x.onHand > 0);
-    if (recodeStock.length && !inp.confirmRecode)
+    const reuseStock = plan.diff.reused.filter((x) => x.onHand > 0);
+    if ((recodeStock.length || reuseStock.length) && !inp.confirmRecode)
       throw new ApiError(
         'LAYOUT_RECODE_NEEDS_CONFIRM',
-        `${recodeStock.length} 个有库存仓位将改码`,
+        `${recodeStock.length + reuseStock.length} 个有库存仓位将改码或移位`,
         {
-          context: { recoded: recodeStock },
+          context: { recoded: recodeStock, reused: reuseStock },
         },
       );
 

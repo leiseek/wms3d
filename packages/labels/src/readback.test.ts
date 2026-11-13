@@ -1,13 +1,17 @@
 import { execFileSync } from 'node:child_process';
 import { mkdtempSync, readFileSync, readdirSync, writeFileSync } from 'node:fs';
-import { createRequire } from 'node:module';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
-import { prepareZXingModule, readBarcodes } from 'zxing-wasm/reader';
-import { renderCalibrationPdf, renderLabelsPdf, xDimension, type LabelItem } from './index.ts';
+import {
+  renderCalibrationPdf,
+  renderLabelsPdf,
+  xDimension,
+  decodePdf,
+  ensureZXing,
+  type LabelItem,
+} from './index.ts';
 
-const require = createRequire(import.meta.url);
 
 const LOC: LabelItem = {
   kind: 'LOCATION',
@@ -71,11 +75,7 @@ const TEMPLATES = [
 
 describe('回读：PDF → pdftoppm 300dpi → zxing-wasm', { timeout: 60_000 }, () => {
   beforeAll(async () => {
-    const wasmPath = require.resolve('zxing-wasm/reader/zxing_reader.wasm');
-    await prepareZXingModule({
-      overrides: { wasmBinary: readFileSync(wasmPath) },
-      fireImmediately: true,
-    });
+    await ensureZXing();
   });
 
   afterAll(() => {
@@ -181,33 +181,6 @@ describe('回读：PDF → pdftoppm 300dpi → zxing-wasm', { timeout: 60_000 },
     ).toBeLessThan(0.4);
   });
 });
-
-async function decodePdf(pdf: Uint8Array, dpi: number): Promise<string[]> {
-  const dir = mkdtempSync(join(tmpdir(), 'wms-labels-rb-'));
-  const pdfPath = join(dir, 'in.pdf');
-  writeFileSync(pdfPath, pdf);
-  execFileSync('/usr/bin/pdftoppm', ['-png', '-r', String(dpi), pdfPath, join(dir, 'page')], {
-    stdio: 'pipe',
-  });
-  const pages = readdirSync(dir)
-    .filter((f) => f.endsWith('.png'))
-    .sort()
-    .map((f) => join(dir, f));
-  const texts: string[] = [];
-  for (const p of pages) {
-    const buf = readFileSync(p);
-    const results = await readBarcodes(buf, {
-      tryHarder: true,
-      tryRotate: false,
-      formats: ['Code128', 'QRCode', 'EAN13'],
-      maxNumberOfSymbols: 64,
-    });
-    for (const r of results) {
-      if (r.isValid && r.text) texts.push(r.text);
-    }
-  }
-  return texts;
-}
 
 function rasterPngForMeasure(
   pdf: Uint8Array,

@@ -62,7 +62,7 @@ interface TaskRow {
   review_lines?: number;
 }
 
-const snapKey = (loc: string, sku: string) => `${loc}|${sku}`;
+const snapKey = (loc: string, sku: string, lot = '') => `${loc}|${sku}|${lot}`;
 const isMgr = (a: AuthContext) => a.role === 'ADMIN' || a.role === 'MANAGER';
 
 const TASK_COLS = `t.id, t.warehouse_id, t.code, t.scope, t.blind, t.status, t.created_by, t.created_at, t.closed_txn_id, t.closed_at,
@@ -164,8 +164,13 @@ export async function createCount(
       );
       if (!locs.rows.length) throw new ApiError('VALIDATION_FAILED', '盘点范围内没有启用的仓位');
       const ids = locs.rows.map((r) => r.id);
-      const snap = await c.query<{ location_id: string; sku_id: string; on_hand: number }>(
-        `SELECT location_id, sku_id, on_hand FROM stock_balances WHERE location_id = ANY($1::uuid[]) AND on_hand > 0 AND lot_no = ''`,
+      const snap = await c.query<{
+        location_id: string;
+        sku_id: string;
+        lot_no: string;
+        on_hand: number;
+      }>(
+        `SELECT location_id, sku_id, lot_no, on_hand FROM stock_balances WHERE location_id = ANY($1::uuid[]) AND on_hand > 0`,
         [ids],
       );
       const scope: StoredScope = {
@@ -174,7 +179,7 @@ export async function createCount(
         locationIds: body.scope.locationIds,
         _locs: ids,
         _snap: Object.fromEntries(
-          snap.rows.map((r) => [snapKey(r.location_id, r.sku_id), r.on_hand]),
+          snap.rows.map((r) => [snapKey(r.location_id, r.sku_id, r.lot_no), r.on_hand]),
         ),
         _submitted: {},
       };
@@ -416,15 +421,16 @@ export async function submitCount(
       );
       if (k.rows[0]!.n !== skuSet.size) throw new ApiError('NOT_FOUND', 'SKU 不存在');
     }
-    const bal = await c.query<{ sku_id: string; on_hand: number }>(
-      `SELECT sku_id, on_hand FROM stock_balances WHERE location_id = $1 AND lot_no = ''`,
+    const bal = await c.query<{ sku_id: string; lot_no: string; on_hand: number }>(
+      `SELECT sku_id, lot_no, on_hand FROM stock_balances WHERE location_id = $1`,
       [locId],
     );
-    const sys = new Map(bal.rows.map((b) => [b.sku_id, b.on_hand]));
-    const counted = new Map(body.lines.map((x) => [x.skuId.toLowerCase(), x.countedQty]));
-    const skus = new Set([
+    const lotKey = (sku: string, lot: string) => `${sku.toLowerCase()} ${lot}`;
+    const sys = new Map(bal.rows.map((b) => [lotKey(b.sku_id, b.lot_no), b.on_hand]));
+    const counted = new Map(body.lines.map((x) => [lotKey(x.skuId, x.lotNo ?? ''), x.countedQty]));
+    const keys = new Set([
       ...counted.keys(),
-      ...bal.rows.filter((b) => b.on_hand > 0).map((b) => b.sku_id),
+      ...bal.rows.filter((b) => b.on_hand > 0).map((b) => lotKey(b.sku_id, b.lot_no)),
     ]);
     const rv = await c.query<{ late: boolean }>(
       `SELECT abs(extract(epoch from (now() - $1::timestamptz))) > extract(epoch from interval '${NEEDS_REVIEW_AFTER}') AS late`,
@@ -435,13 +441,16 @@ export async function submitCount(
       taskId,
       locId,
     ]);
-    const arr = [...skus].sort();
+    const arr = [...keys].sort().map((k) => {
+      const i = k.indexOf(' ');
+      return { sku: k.slice(0, i), lot: k.slice(i + 1) };
+    });
     if (arr.length)
       await c.query(
         `INSERT INTO count_lines (task_id, location_id, sku_id, lot_no, snapshot_qty, system_qty_at_count, counted_qty,
                                   counted_by, client_counted_at, submission_id, needs_review)
-         SELECT $1, $2, x.s, '', x.snap, x.sys, x.cnt, $3, $4, $5, $6
-           FROM unnest($7::uuid[], $8::int[], $9::int[], $10::int[]) AS x(s, snap, sys, cnt)`,
+         SELECT $1, $2, x.s, x.lot, x.snap, x.sys, x.cnt, $3, $4, $5, $6
+           FROM unnest($7::uuid[], $8::text[], $9::int[], $10::int[], $11::int[]) AS x(s, lot, snap, sys, cnt)`,
         [
           taskId,
           locId,
@@ -449,10 +458,11 @@ export async function submitCount(
           body.clientCountedAt,
           body.submissionId,
           needsReview,
-          arr,
-          arr.map((s) => task.scope._snap[snapKey(locId, s)] ?? null),
-          arr.map((s) => sys.get(s) ?? 0),
-          arr.map((s) => counted.get(s) ?? 0),
+          arr.map((a) => a.sku),
+          arr.map((a) => a.lot),
+          arr.map((a) => task.scope._snap[snapKey(locId, a.sku, a.lot)] ?? null),
+          arr.map((a) => sys.get(lotKey(a.sku, a.lot)) ?? 0),
+          arr.map((a) => counted.get(lotKey(a.sku, a.lot)) ?? 0),
         ],
       );
     await c.query(
@@ -602,8 +612,34 @@ export async function closeCount(
     if (outcome && bus) publishStockChanged(bus, pre.warehouse_id, outcome);
     return { task: await getTask(pool, taskId), adjustTxnId: res.adjustTxnId };
   } catch (e) {
-    if (e instanceof ApiError && e.code === 'INSUFFICIENT_STOCK') {
-      // 整个关闭已回滚；在新事务里标记余额不足的行 needs_review，任务仍为 REVIEW
+    if (
+      e instanceof ApiError &&
+      (e.code === 'INSUFFICIENT_STOCK' || e.code === 'LOCATION_INACTIVE')
+    ) {
+      // 整个关闭已回滚；在新事务里标记问题行 needs_review，任务仍为 REVIEW
+      if (e.code === 'LOCATION_INACTIVE') {
+        const locId = String(
+          (e.extra?.context as { locationId?: string } | undefined)?.locationId ?? '',
+        );
+        const marked = await withTx(pool, async (c) => {
+          const r = await c.query<{ location_id: string; sku_id: string }>(
+            `UPDATE count_lines SET needs_review = true
+              WHERE task_id = $1 AND ($2::uuid IS NULL OR location_id = $2)
+             RETURNING location_id, sku_id`,
+            [taskId, locId || null],
+          );
+          return r.rows;
+        });
+        throw new ApiError('COUNT_RECOUNT_REQUIRED', '关闭时遇到已停用仓位，相关行需要重盘', {
+          context: {
+            locationIds: [
+              ...new Set(marked.map((l) => l.location_id).concat(locId ? [locId] : [])),
+            ],
+            reason: 'LOCATION_INACTIVE',
+            lines: marked.map((l) => ({ locationId: l.location_id, skuId: l.sku_id })),
+          },
+        });
+      }
       const lines = await withTx(pool, async (c) => {
         const r = await c.query<{
           location_id: string;

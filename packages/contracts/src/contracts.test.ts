@@ -50,9 +50,9 @@ describe('路由表完整性', () => {
     expect(routes.postTransaction.checksDevice).toBe(true);
     expect(routes.reverseTransaction.idempotency).toBe('required');
   });
-  it('覆盖 03 §5 的全部端点（75 个操作 / 63 条路径）', () => {
-    expect(list.length).toBe(75);
-    expect(new Set(list.map((r) => r.path)).size).toBe(63);
+  it('覆盖 03 §5 的全部端点（77 个操作 / 65 条路径）', () => {
+    expect(list.length).toBe(77);
+    expect(new Set(list.map((r) => r.path)).size).toBe(65);
   });
 });
 
