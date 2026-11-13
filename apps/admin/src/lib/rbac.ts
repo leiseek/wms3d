@@ -73,6 +73,8 @@ export const NAV: NavItem[] = [
     roles: ALL,
     children: [
       { key: 'stock', label: '库存查询', path: '/stock', roles: ALL },
+      { key: 'alerts', label: '低库存预警', path: '/alerts', roles: ALL },
+      { key: 'counts', label: '盘点', path: '/counts', roles: ['ADMIN', 'MANAGER', 'OPERATOR'] },
       { key: 'movements', label: '流水台账', path: '/movements', roles: ALL },
       { key: 'txns', label: '交易单', path: '/transactions', roles: ALL },
       { key: 'adjust', label: '调整 / 移库', path: '/adjust', roles: MGR },

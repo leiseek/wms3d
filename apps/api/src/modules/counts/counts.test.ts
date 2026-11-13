@@ -328,4 +328,52 @@ describe.skipIf(!pgAvailable)('盘点（02 §8）', () => {
     ).toBe(404);
     expect((await post('manager', `/counts/${id2}/start`)).statusCode).toBe(404);
   });
+
+  it('审计完整性：创建/开始/审核/关闭/取消均落审计日志', async () => {
+    const actions = async (id: string) =>
+      (
+        await pool().query<{ action: string }>(
+          `SELECT action FROM audit_logs WHERE entity = 'count_task' AND entity_id = $1 ORDER BY id`,
+          [id],
+        )
+      ).rows.map((r) => r.action);
+
+    const L = fresh();
+    await stock(L, S(0), 2);
+    const created = CountTask.parse(
+      (await post('manager', '/counts', { warehouseId: WH1, scope: { locationIds: [L] } })).json(),
+    );
+    expect(await actions(created.id)).toEqual(['count.create']);
+    await post('manager', `/counts/${created.id}/start`);
+    await submit('op1', created.id, L, [{ skuId: S(0), countedQty: 1 }]);
+    await post('manager', `/counts/${created.id}/review`);
+    const closed = CountCloseResult.parse(
+      (
+        await post('manager', `/counts/${created.id}/close`, { confirmPendingOutbox: false })
+      ).json(),
+    );
+    expect(closed.adjustTxnId).toBeTruthy();
+    expect(await actions(created.id)).toEqual([
+      'count.create',
+      'count.counting',
+      'count.review',
+      'count.close',
+    ]);
+    expect(
+      (
+        await pool().query<{ action: string }>(
+          `SELECT action FROM audit_logs WHERE action = 'inventory.count_adjust' AND entity_id = $1`,
+          [closed.adjustTxnId],
+        )
+      ).rows.map((r) => r.action),
+    ).toEqual(['inventory.count_adjust']);
+
+    const other = CountTask.parse(
+      (
+        await post('manager', '/counts', { warehouseId: WH1, scope: { locationIds: [fresh()] } })
+      ).json(),
+    );
+    await post('manager', `/counts/${other.id}/cancel`);
+    expect(await actions(other.id)).toEqual(['count.create', 'count.cancelled']);
+  });
 });

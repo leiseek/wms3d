@@ -38,3 +38,5 @@ export {
 export { buildSceneData, boundsOf, type SceneData } from './model.ts';
 export { pick, type PickResult } from './pick.ts';
 export { CompactSlots } from './slots.ts';
+
+export { fitCameraToBox, inFrustum, ISO_DIR, TOP_DIR, inflateBox } from './camera.ts';

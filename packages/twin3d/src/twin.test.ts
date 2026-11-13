@@ -1,11 +1,12 @@
 import { describe, expect, it, vi, afterEach } from 'vitest';
 import fc from 'fast-check';
 import type { LayoutDoc, Occupancy, RotationDeg, WmsEvent } from '@wms3d/contracts';
-import { cellWorld, validateLayout } from '@wms3d/domain';
+import { cellWorld, rackFootprint, validateLayout } from '@wms3d/domain';
 import golden from '@wms3d/domain/geometry-golden.json';
 import { goldenLayout, goldenType } from '../../domain/src/__fixtures__/golden-input.ts';
 import { buildTwinIndex, indicesOf } from './twinIndex.ts';
 import { BIN_SCALE, buildSceneData, boundsOf, rackToWorld } from './model.ts';
+import { fitCameraToBox, inFrustum, ISO_DIR, TOP_DIR } from './camera.ts';
 import { CompactSlots, EMPTY, HIDDEN, OPAQUE, type SlotMesh } from './slots.ts';
 import { pick, rayAabb } from './pick.ts';
 import { initialLod, nextLod } from './lod.ts';
@@ -150,6 +151,53 @@ describe('黄金样例坐标一致（02 §2）', () => {
     // 分块：A 区 3 条巷道 + B 区 1 条 + 地面
     expect(d.chunks.map((c) => c.key).sort()).toEqual(['A|1', 'A|2', 'A|3', 'B|1', 'floor']);
     expect(d.chunks.reduce((s, c) => s + c.locs.length, 0)).toBe(386);
+  });
+
+  it('3D 货架包围盒与 2D 平面位置一致（X/Z、原点、旋转）', () => {
+    const m = demoTwinModel();
+    const d = buildSceneData(m);
+    const types = new Map(m.layout.rackTypes.map((t) => [t.key, t]));
+    expect(d.racks.length).toBe(m.layout.racks.length);
+    for (const g of d.racks) {
+      const t = types.get(g.rack.type)!;
+      const expected = rackFootprint(g.rack, t);
+      const got = [
+        rackToWorld(g, 0, 0),
+        rackToWorld(g, g.lengthM, 0),
+        rackToWorld(g, g.lengthM, -t.depthM),
+        rackToWorld(g, 0, -t.depthM),
+      ];
+      for (let i = 0; i < 4; i++) {
+        expect(got[i]![0], `${g.key}[${i}].x`).toBeCloseTo(expected[i]![0], 5);
+        expect(got[i]![1], `${g.key}[${i}].z`).toBeCloseTo(expected[i]![1], 5);
+      }
+    }
+  });
+});
+
+describe('相机适配', () => {
+  const box = {
+    min: [0, 0, 0] as [number, number, number],
+    max: [60, 10, 40] as [number, number, number],
+  };
+  it('等轴 / 俯视把仓库包围盒全部纳入视野', () => {
+    for (const [dir, aspect] of [
+      [ISO_DIR, 1],
+      [ISO_DIR, 16 / 9],
+      [ISO_DIR, 0.6],
+      [TOP_DIR, 1],
+      [TOP_DIR, 16 / 9],
+    ] as const) {
+      const { pos, target } = fitCameraToBox(box, aspect, 50, dir, 1.22);
+      const corners: [number, number, number][] = [];
+      for (const x of [0, 60])
+        for (const y of [0, 10]) for (const z of [0, 40]) corners.push([x, y, z]);
+      for (const c of corners)
+        expect(
+          inFrustum(c, pos, target, aspect, 50, 1.05),
+          `dir=${dir} aspect=${aspect} c=${c}`,
+        ).toBe(true);
+    }
   });
 });
 

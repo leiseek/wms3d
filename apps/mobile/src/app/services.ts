@@ -57,6 +57,8 @@ export interface UiState {
   tab: 'work' | 'query' | 'twin' | 'more';
   /** 定位联动（查询 → 3D） */
   highlight: { locationIds: string[]; label: string } | null;
+  /** 3D 标签核对模式 */
+  labelCheck: boolean;
 }
 
 export const useUi = create<UiState>(() => ({
@@ -76,6 +78,7 @@ export const useUi = create<UiState>(() => ({
   sppState: 'idle',
   tab: 'work',
   highlight: null,
+  labelCheck: false,
 }));
 
 const set = useUi.setState;
