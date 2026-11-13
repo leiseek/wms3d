@@ -12,7 +12,6 @@ import {
   type LabelItem,
 } from './index.ts';
 
-
 const LOC: LabelItem = {
   kind: 'LOCATION',
   code: 'A03-17-C02',
