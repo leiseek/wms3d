@@ -116,7 +116,7 @@ Fastify `preHandler` 统一解析并校验 `user_warehouses`（或 `all_warehous
 |---|---|
 | GET/POST/PATCH | /skus, /skus/:id（`q` 匹配 code/name/条码） |
 | POST/DELETE | /skus/:id/barcodes（登记表冲突 → `BARCODE_CONFLICT`） |
-| POST | /skus/import?dryRun=true\|false（multipart CSV） |
+| POST | /skus/import?dryRun=true\|false（multipart 单文件字段 `file`，UTF-8 CSV，可带 BOM，≤ 5 万行） |
 | GET | /skus/export.csv |
 
 ### 扫码与同步

@@ -44,7 +44,8 @@ tar -C /tmp -czf wms3d-release.tgz wms3d-release           # 拷到目标机
 # 在目标机
 sudo CADDY_BIN=/usr/local/bin/caddy infra/native/install.sh --systemd --release /path/wms3d-release \
      --domain wms.example.com --tls internal                # internal | acme | <crt>,<key>
-WMS_ADMIN_TEMP_PASSWORD='<临时密码≥12位>' node --experimental-strip-types scripts/create-admin.ts \
+WMS_ADMIN_TEMP_PASSWORD='<临时密码≥12位>' \
+     node --experimental-strip-types /opt/wms3d/app/apps/api/src/db/create-admin.ts \
      --url "$(sudo grep ^DATABASE_URL= /opt/wms3d/etc/.env | cut -d= -f2-)" --username <管理员账号>
 ```
 `install.sh` 是幂等的：已存在的 `etc/.env`、`backup.env`、数据目录不会被覆盖（密码与 JWT 密钥只在首次生成）。
